@@ -282,6 +282,9 @@ def load_qwen_api_key() -> str:
         for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith("QWEN_API_KEY="):
                 return re.sub(r"\s+", "", line.split("=", 1)[1].strip().strip('"').strip("'"))
+    shared_key = load_api_key()
+    if shared_key.startswith("sk-sp-"):
+        return shared_key
     return ""
 
 def load_deepseek_api_key() -> str:
@@ -292,6 +295,9 @@ def load_deepseek_api_key() -> str:
         for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith("DEEPSEEK_API_KEY="):
                 return re.sub(r"\s+", "", line.split("=", 1)[1].strip().strip('"').strip("'"))
+    shared_key = load_api_key()
+    if shared_key.startswith("sk-sp-"):
+        return shared_key
     return ""
 
 def save_api_key(api_key: str):
@@ -887,7 +893,11 @@ class SheetXMLRequestHandler(SimpleHTTPRequestHandler):
                 api_key = req_data.get("apiKey", "").strip()
                 provider = req_data.get("provider", "gemini")
                 if api_key:
-                    ({"qwen": save_qwen_api_key, "deepseek": save_deepseek_api_key}.get(provider, save_api_key))(api_key)
+                    if api_key.replace(" ", "").startswith("sk-sp-"):
+                        save_qwen_api_key(api_key)
+                        save_deepseek_api_key(api_key)
+                    else:
+                        ({"qwen": save_qwen_api_key, "deepseek": save_deepseek_api_key}.get(provider, save_api_key))(api_key)
                 self._send_json(200, {"success": True, "message": "API Key saved successfully."})
             except Exception as e:
                 self._send_json(400, {"error": str(e)})
