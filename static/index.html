@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SheetXML | Gemini AI Sheet Music to MusicXML Transcriber</title>
-  <meta name="description" content="State-of-the-art Optical Music Recognition transcribing sheet music PDFs and images to MusicXML 4.0 using Gemini Pro.">
+  <title>SheetXML | AI Sheet Music to MusicXML Transcriber</title>
+  <meta name="description" content="Optical Music Recognition transcribing sheet music PDFs and images to MusicXML 4.0 using multiple AI providers.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -27,7 +27,7 @@
         </div>
         <div class="brand-text">
           <h1>Sheet<span class="gradient-text">XML</span></h1>
-          <p class="tagline">Gemini Optical Music Recognition & MusicXML 4.0 Engine</p>
+          <p class="tagline">Multi-provider Optical Music Recognition & MusicXML 4.0 Engine</p>
         </div>
       </div>
 
@@ -37,9 +37,9 @@
           Try Sample Score
         </button>
 
-        <button id="settingsBtn" class="btn btn-glass" title="Configure Gemini AI Connection">
+        <button id="settingsBtn" class="btn btn-glass" title="Configure AI Connection">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span id="keyStatusText">Gemini Settings</span>
+          <span id="keyStatusText">AI Settings</span>
           <span id="keyStatusDot" class="status-dot"></span>
         </button>
       </div>
@@ -92,7 +92,7 @@
         <!-- Conversion Options Bar -->
         <div class="controls-bar">
           <div class="control-group">
-            <label for="modelSelect">Gemini Model</label>
+            <label for="modelSelect">AI Model</label>
             <select id="modelSelect" class="form-select">
               <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Recommended)</option>
               <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
@@ -144,7 +144,7 @@
           <div class="spinner-ring"></div>
           <div>
             <h3 id="progressTitle">Transcribing Musical Notation...</h3>
-            <p id="progressSubtitle" class="text-muted">The selected Gemini model is reading staves, clefs, notes, and dynamics...</p>
+            <p id="progressSubtitle" class="text-muted">The selected AI model is reading staves, clefs, notes, and dynamics...</p>
           </div>
         </div>
         <div class="progress-bar-container">
@@ -364,7 +364,7 @@
           </div>
 
           <div class="form-field">
-            <label for="apiKeyInput">Gemini API Key</label>
+            <label for="apiKeyInput">Provider API Key</label>
             <div class="input-with-button">
               <input type="password" id="apiKeyInput" class="form-input" placeholder="AIzaSy...">
               <button type="button" class="btn btn-outline btn-sm" id="toggleKeyVisibility">Show</button>

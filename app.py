@@ -681,8 +681,7 @@ def transcribe_sheet_music(
         if fb not in models_to_try:
             models_to_try.append(fb)
 
-    response = response if provider == "qwen" else None
-    model_succeeded = model_succeeded if provider == "qwen" else None
+    response = response if provider == "gemini" else None
     last_error = None
 
     for m_attempt in models_to_try if provider == "gemini" else []:
@@ -720,12 +719,12 @@ def transcribe_sheet_music(
         if model_succeeded:
             break
 
-    if not model_succeeded or not response:
+    if not model_succeeded or (provider == "gemini" and not response):
         raise RuntimeError(f"Transcription failed: All model endpoints were busy ({last_error}). Please try again in a few moments.")
 
     raw_text = raw_text if provider == "qwen" else (response.text or "")
     if not raw_text.strip():
-        raise RuntimeError("Gemini returned an empty response. Please verify the document clarity.")
+        raise RuntimeError(f"{provider.title()} returned an empty response. Please verify the document clarity.")
 
     # Sanitize & format XML
     sanitized_xml = sanitize_musicxml(raw_text)

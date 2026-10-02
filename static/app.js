@@ -320,7 +320,7 @@ function formatBytes(bytes) {
 function testConnection() {
   const key = apiKeyInput.value.trim();
   verifyStatusBox.classList.remove("hidden", "success", "error");
-  verifyStatusBox.textContent = "Connecting to Gemini AI...";
+  verifyStatusBox.textContent = `Connecting to ${selectedProvider()}...`;
 
   fetch("/api/verify-key", {
     method: "POST",
@@ -331,9 +331,9 @@ function testConnection() {
     .then(data => {
       if (data.success) {
         verifyStatusBox.className = "verify-status success";
-        verifyStatusBox.textContent = "✓ Connected! Gemini model subscription verified and active.";
+        verifyStatusBox.textContent = `✓ Connected! ${selectedProvider()} API access verified.`;
         keyStatusDot.classList.add("active");
-        keyStatusText.textContent = "Gemini Connected";
+        keyStatusText.textContent = `${selectedProvider()} Connected`;
       } else {
         verifyStatusBox.className = "verify-status error";
         verifyStatusBox.textContent = data.error || "Connection failed. Please check your key.";
@@ -348,7 +348,7 @@ function testConnection() {
 function saveApiKey() {
   const key = apiKeyInput.value.trim();
   if (!key) {
-    showToast("Please enter a valid Gemini API Key.");
+    showToast(`Please enter a valid ${selectedProvider()} API key.`);
     return;
   }
 
@@ -360,7 +360,7 @@ function saveApiKey() {
     .then(res => res.json())
     .then(data => {
       if (data.success) {
-        showToast("Gemini API Key saved successfully.");
+        showToast(`${selectedProvider()} API key saved successfully.`);
         settingsModal.classList.add("hidden");
         checkApiConfig();
       } else {
