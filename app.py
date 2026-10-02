@@ -175,6 +175,12 @@ AVAILABLE_MODELS = [
         "name": "DeepSeek V4.1 Flash (Vision)",
         "provider": "deepseek",
         "description": "Image-based notation transcription; PDFs use Gemini or Qwen"
+    },
+    {
+        "id": "deepseek-v4.1-flash",
+        "name": "DeepSeek V4.1 Flash via Qwen",
+        "provider": "deepseek",
+        "description": "DeepSeek vision model through a Qwen Token Plan key"
     }
 ]
 
@@ -248,7 +254,7 @@ Your mission is to transcribe the provided sheet music document (PDF or image) w
 def load_api_key() -> str:
     """Load Gemini API Key from environment or .env file."""
     # 1. Check environment variable
-    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    key = re.sub(r"\s+", "", os.environ.get("GEMINI_API_KEY", ""))
     if key:
         return key
     
@@ -259,7 +265,7 @@ def load_api_key() -> str:
                 for line in f:
                     line = line.strip()
                     if line.startswith("GEMINI_API_KEY="):
-                        k = line.split("=", 1)[1].strip().strip('"').strip("'")
+                        k = re.sub(r"\s+", "", line.split("=", 1)[1].strip().strip('"').strip("'"))
                         if k:
                             return k
         except Exception:
@@ -269,23 +275,23 @@ def load_api_key() -> str:
 
 def load_qwen_api_key() -> str:
     """Load QwenCloud/DashScope key without mixing it with Gemini credentials."""
-    key = os.environ.get("QWEN_API_KEY", "").strip()
+    key = re.sub(r"\s+", "", os.environ.get("QWEN_API_KEY", ""))
     if key:
         return key
     if CONFIG_FILE.exists():
         for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith("QWEN_API_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
+                return re.sub(r"\s+", "", line.split("=", 1)[1].strip().strip('"').strip("'"))
     return ""
 
 def load_deepseek_api_key() -> str:
-    key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+    key = re.sub(r"\s+", "", os.environ.get("DEEPSEEK_API_KEY", ""))
     if key:
         return key
     if CONFIG_FILE.exists():
         for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith("DEEPSEEK_API_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
+                return re.sub(r"\s+", "", line.split("=", 1)[1].strip().strip('"').strip("'"))
     return ""
 
 def save_api_key(api_key: str):
@@ -344,8 +350,9 @@ def transcribe_with_qwen(file_bytes: bytes, mime_type: str, api_key: str, model_
         "temperature": 0.1,
         "max_tokens": 65536
     }).encode("utf-8")
+    base_url = "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1" if api_key.startswith("sk-sp-") else "https://maas.qwencloudapi.com/compatible-mode/v1"
     request = urllib.request.Request(
-        "https://maas.qwencloudapi.com/compatible-mode/v1/chat/completions",
+        f"{base_url}/chat/completions",
         data=body,
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST"
@@ -357,7 +364,7 @@ def transcribe_with_qwen(file_bytes: bytes, mime_type: str, api_key: str, model_
         content = "".join(item.get("text", "") for item in content if isinstance(item, dict))
     return content
 
-def transcribe_with_deepseek(file_bytes: bytes, mime_type: str, api_key: str, prompt: str) -> str:
+def transcribe_with_deepseek(file_bytes: bytes, mime_type: str, api_key: str, prompt: str, model_name: str = "deepseek-flash") -> str:
     """Call DeepSeek Flash vision. DeepSeek's vision API accepts images, not PDFs."""
     if mime_type == "application/pdf":
         raise ValueError("DeepSeek Flash vision accepts images, not PDFs. Select Gemini or Qwen for PDF transcription.")
@@ -365,13 +372,14 @@ def transcribe_with_deepseek(file_bytes: bytes, mime_type: str, api_key: str, pr
     if file_bytes:
         content.insert(0, {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64.b64encode(file_bytes).decode()}"}})
     body = json.dumps({
-        "model": "deepseek-flash",
+        "model": model_name,
         "messages": [{"role": "user", "content": content}],
         "temperature": 0.1,
         "max_tokens": 65536
     }).encode("utf-8")
+    base_url = "https://token-plan.maas.qwencloudapi.com/compatible-mode/v1" if api_key.startswith("sk-sp-") else "https://api.deepseek.com"
     request = urllib.request.Request(
-        "https://api.deepseek.com/chat/completions",
+        f"{base_url}/chat/completions",
         data=body,
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         method="POST"
@@ -648,7 +656,7 @@ def transcribe_sheet_music(
         response = None
     elif provider == "deepseek":
         print("[SheetXML] Calling DeepSeek Flash vision...")
-        raw_text = transcribe_with_deepseek(file_bytes, mime_type, api_key, SYSTEM_PROMPT + "\n\n" + user_prompt)
+        raw_text = transcribe_with_deepseek(file_bytes, mime_type, api_key, SYSTEM_PROMPT + "\n\n" + user_prompt, model_name)
         model_succeeded = model_name
         response = None
     else:
@@ -899,7 +907,7 @@ class SheetXMLRequestHandler(SimpleHTTPRequestHandler):
                 if provider == "qwen":
                     transcribe_with_qwen(b"", "image/png", test_key, "qwen3.8-flash", "Reply with: OK")
                 elif provider == "deepseek":
-                    transcribe_with_deepseek(b"", "image/png", test_key, "Reply with: OK")
+                    transcribe_with_deepseek(b"", "image/png", test_key, "Reply with: OK", "deepseek-v4.1-flash" if test_key.startswith("sk-sp-") else "deepseek-flash")
                 else:
                     client = genai.Client(api_key=test_key)
                     client.models.generate_content(model="gemini-3-flash-preview", contents="Reply with: OK")
