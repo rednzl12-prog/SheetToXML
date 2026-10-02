@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.py[cod]
+*.log
+*.pid
+transcriptions/*
+!transcriptions/.gitkeep
+.DS_Store
