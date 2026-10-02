@@ -48,7 +48,7 @@ namespace SheetXML
                 {
                     argStr += " \"" + args[i] + "\"";
                 }
-                psiCli.Arguments = "\"" + pythonScript + "\"" + argStr;
+                psiCli.Arguments = "-B \"" + pythonScript + "\"" + argStr;
                 psiCli.UseShellExecute = false;
                 psiCli.RedirectStandardOutput = true;
                 psiCli.RedirectStandardError = true;
@@ -99,7 +99,7 @@ namespace SheetXML
             ProcessStartInfo psi = new ProcessStartInfo();
             psi.FileName = pythonExe;
             psi.WorkingDirectory = appDir;
-            psi.Arguments = "\"" + pythonScript + "\" --port " + SERVER_PORT + " --no-browser";
+            psi.Arguments = "-B \"" + pythonScript + "\" --port " + SERVER_PORT + " --no-browser";
             psi.UseShellExecute = true;
             psi.WindowStyle = ProcessWindowStyle.Hidden;
 

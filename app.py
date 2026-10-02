@@ -282,10 +282,7 @@ def load_qwen_api_key() -> str:
         for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith("QWEN_API_KEY="):
                 return re.sub(r"\s+", "", line.split("=", 1)[1].strip().strip('"').strip("'"))
-    shared_key = load_api_key()
-    if shared_key.startswith("sk-sp-"):
-        return shared_key
-    return ""
+    return load_api_key()
 
 def load_deepseek_api_key() -> str:
     key = re.sub(r"\s+", "", os.environ.get("DEEPSEEK_API_KEY", ""))
@@ -295,10 +292,7 @@ def load_deepseek_api_key() -> str:
         for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith("DEEPSEEK_API_KEY="):
                 return re.sub(r"\s+", "", line.split("=", 1)[1].strip().strip('"').strip("'"))
-    shared_key = load_api_key()
-    if shared_key.startswith("sk-sp-"):
-        return shared_key
-    return ""
+    return load_api_key()
 
 def save_api_key(api_key: str):
     """Save Gemini API Key to local .env file."""

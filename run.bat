@@ -5,7 +5,7 @@ echo ==============================================================
 echo  SheetXML - Gemini 2.5 AI Sheet Music to MusicXML Transcriber
 echo ==============================================================
 echo Starting local web server and opening browser...
-python app.py
+python -B app.py
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [ERROR] Failed to run SheetXML.

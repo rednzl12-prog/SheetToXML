@@ -10,12 +10,12 @@ if "%~1"=="" (
     echo.
     echo Or press any key to launch the interactive Web GUI...
     pause >nul
-    python app.py
+    python -B app.py
     goto end
 )
 
 echo Transcribing: %~nx1
-python app.py "%~1"
+python -B app.py "%~1"
 echo.
 pause
 
