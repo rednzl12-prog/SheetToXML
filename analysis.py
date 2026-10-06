@@ -647,7 +647,7 @@ def ai_summary(details: dict, *, provider: str, models: List[str], key: str, bas
               "positions unless 'positionsUsed' is given. Bold at most three short phrases.\n\n"
               "Analysis (JSON):\n" + json.dumps(facts, ensure_ascii=False))
     text, _ = llm.generate_with_fallback(provider, models, key, SUMMARY_SYSTEM, [prompt], base_url=base_url,
-                                         max_tokens=2048, thinking="low" if provider == "gemini" else "off",
+                                         max_tokens=2048, thinking=llm.PROVIDERS.get(provider, {}).get("thinking"),
                                          timeout=120, cancel=cancel)
     lines = text.strip().splitlines()
     if lines and "about this piece" in lines[0].lower():     # the page already has this heading

@@ -1,0 +1,37 @@
+THIRD-PARTY NOTICES
+===================
+
+SheetXML itself is MIT licensed (see LICENSE.txt). The installer and the program folder also contain
+the following third-party software, each under its own license.
+
+Audiveris 5.11 (optional, installed separately by this installer's Audiveris option)
+  License: GNU Affero General Public License v3.0 (AGPL-3.0)
+  Source code: https://github.com/Audiveris/audiveris
+  The unmodified official Windows installer (Audiveris-5.11.0-windows-x86_64.msi) is included. It is
+  installed as its own program and runs as a separate process; SheetXML only calls its command line.
+  It bundles its own Java runtime and libraries under their respective licenses. Remove it any time
+  from Windows Settings > Apps.
+
+Python 3.14 runtime and standard library
+  License: Python Software Foundation License Version 2 (PSF-2.0). https://www.python.org/
+
+PyInstaller bootloader (SheetXML.exe, SheetXML-cli.exe start-up code)
+  License: GPL-2.0-or-later with the PyInstaller bootloader exception, which permits distributing
+  bundled programs under any license. https://pyinstaller.org/
+
+OpenSheetMusicDisplay (static/osmd.min.js, renders the score in the web page)
+  License: BSD-3-Clause. https://github.com/opensheetmusicdisplay/opensheetmusicdisplay
+  Includes VexFlow (MIT).
+
+pypdfium2 / PDFium (PDF reading)
+  License: pypdfium2 BSD-3-Clause or Apache-2.0; PDFium BSD-3-Clause (with third-party components under
+  their own licenses). https://github.com/pypdfium2-team/pypdfium2
+
+lxml (BSD-3-Clause, includes libxml2/libxslt under the MIT license), Pillow (MIT-CMU),
+httpx (BSD-3-Clause), google-genai (Apache-2.0).
+
+MusicXML 4.0 schema files (schemas/): (c) 2004-2021 the Contributors to the MusicXML Specification,
+published by the W3C Music Notation Community Group under the W3C Community Final Specification
+Agreement (FSA). https://www.w3.org/community/about/agreements/final/
+
+Python packages bundled in the program folder (name, version, license as declared by the package):

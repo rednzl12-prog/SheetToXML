@@ -4,7 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SheetXML | Sheet Music to MusicXML + Mandolin TAB</title>
-  <meta name="description" content="Converts sheet music PDFs, images, MusicXML and ABC into MusicXML 4.0 with a mandolin TAB staff.">
+  <meta name="description" content="Converts sheet music PDFs, images, MusicXML and ABC into MusicXML 4.0 with a mandolin-family TAB staff.">
+  <link rel="icon" href="favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -13,420 +14,363 @@
   <script src="osmd.min.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#uploadSection">Skip to the converter</a>
   <div class="app-container">
-    <!-- Header -->
     <header class="app-header">
       <div class="brand">
-        <div class="brand-logo">
+        <div class="brand-logo" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="clef-icon">
-            <path d="M9 18V5l12-2v13"></path>
-            <circle cx="6" cy="18" r="3"></circle>
-            <circle cx="18" cy="16" r="3"></circle>
+            <path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>
           </svg>
-          <span class="logo-glow"></span>
         </div>
         <div class="brand-text">
           <h1>Sheet<span class="gradient-text">XML</span></h1>
-          <p class="tagline">Sheet music to MusicXML 4.0 with mandolin TAB</p>
+          <p class="tagline">Sheet music to MusicXML with mandolin tab</p>
         </div>
       </div>
-
       <div class="header-actions">
-        <button id="loadSampleBtn" class="btn btn-secondary" title="Load the sample score from the folder">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-          Try Sample Score
-        </button>
-
-        <button id="settingsBtn" class="btn btn-glass" title="Configure AI Connection">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          <span id="keyStatusText">AI Settings</span>
-          <span id="keyStatusDot" class="status-dot"></span>
+        <button type="button" id="loadSampleBtn" class="btn btn-secondary">Try a sample score</button>
+        <button type="button" id="settingsBtn" class="btn btn-glass" aria-haspopup="dialog">
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 4.6 19.4l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 .6 13.4H.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 1.77 6.6l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 7.42 2.6V2.5a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 18.4 9.4h.1a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span id="keyStatusText">AI keys</span>
         </button>
       </div>
     </header>
 
-    <!-- Main Workspace -->
     <main class="main-content">
-      <!-- Upload Card -->
-      <section class="card upload-card" id="uploadSection">
+      <!-- 1. File + how to read it -->
+      <section class="card upload-card" id="uploadSection" aria-labelledby="uploadHeading">
+        <h2 class="section-title" id="uploadHeading"><span class="step-num" aria-hidden="true">1</span> Choose your sheet music</h2>
         <div class="dropzone" id="dropzone">
           <input type="file" id="fileInput" accept=".pdf,image/*,.musicxml,.xml,.mxl,.abc" hidden>
           <div class="dropzone-content" id="dropzoneIdle">
-            <div class="upload-icon-bubble">
-              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
+            <div class="upload-icon-bubble" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
             </div>
-            <h3>Drag & Drop Sheet Music</h3>
-            <p class="dropzone-subtitle">Drop a PDF, a photo or scan (PNG, JPG, TIFF), or a MusicXML / ABC file to add mandolin TAB</p>
+            <h3>Drop a file here</h3>
+            <p class="dropzone-subtitle">A PDF, a photo or scan (PNG, JPG, TIFF), or a MusicXML / ABC file to add tab to</p>
             <div class="dropzone-actions">
-              <button type="button" class="btn btn-outline" id="browseBtn">Browse Files</button>
-              <span class="or-divider">or</span>
-              <span class="file-limits">Files up to 50 MB</span>
+              <button type="button" class="btn btn-outline" id="browseBtn">Browse files</button>
+              <span class="file-limits">up to 50 MB</span>
             </div>
           </div>
-
-          <!-- File Selected Preview -->
           <div class="dropzone-preview hidden" id="dropzonePreview">
             <div class="file-info-badge">
-              <div class="file-icon-box" id="fileTypeIcon">
+              <div class="file-icon-box" aria-hidden="true">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
               </div>
               <div class="file-meta">
-                <span class="file-name" id="fileName">myscore.pdf</span>
-                <span class="file-size" id="fileSize">1.2 MB</span>
+                <span class="file-name" id="fileName"></span>
+                <span class="file-size" id="fileSize"></span>
               </div>
-              <button type="button" class="btn-icon" id="clearFileBtn" title="Remove file">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <button type="button" class="btn-icon" id="clearFileBtn" aria-label="Remove this file">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
-            <!-- Image thumbnail if image -->
             <div class="thumbnail-wrapper hidden" id="thumbnailWrapper">
-              <img id="imageThumbnail" alt="Sheet music preview">
+              <img id="imageThumbnail" alt="Preview of the chosen sheet music">
             </div>
           </div>
         </div>
 
-        <!-- Conversion Options Bar -->
         <div class="controls-bar">
           <div class="control-group" id="engineGroup">
-            <label for="engineSelect">Engine</label>
-            <select id="engineSelect" class="form-select">
+            <label for="engineSelect">How to read it</label>
+            <select id="engineSelect" class="form-select" aria-describedby="engineHint">
               <option value="auto" selected>Auto (recommended)</option>
               <option value="vector">Exact PDF reader (no AI)</option>
-              <option value="ai">AI vision model</option>
-              <option value="audiveris">Audiveris offline</option>
+              <option value="audiveris">Audiveris (offline)</option>
+              <option value="hybrid">Audiveris + AI check</option>
+              <option value="ai">AI only</option>
             </select>
             <p class="field-hint" id="engineHint"></p>
           </div>
-
+          <div class="control-group" id="providerGroup">
+            <label for="providerSelect">AI service</label>
+            <select id="providerSelect" class="form-select" aria-describedby="providerHint"></select>
+            <p class="field-hint" id="providerHint"></p>
+          </div>
           <div class="control-group" id="modelGroup">
-            <label for="modelSelect">AI Model</label>
-            <select id="modelSelect" class="form-select"></select>
+            <label for="modelSelect">AI model</label>
+            <select id="modelSelect" class="form-select" aria-describedby="modelHint"></select>
+            <input type="text" id="modelCustom" class="form-input hidden" placeholder="Type the model id, e.g. llava:13b" aria-label="Model id">
             <p class="field-hint" id="modelHint"></p>
           </div>
-
           <div class="control-group" id="votesGroup">
             <label for="votesSelect">Accuracy</label>
-            <select id="votesSelect" class="form-select">
-              <option value="1" selected>Standard (1 reading)</option>
-              <option value="3">Careful (3 readings, ~3x API cost)</option>
+            <select id="votesSelect" class="form-select" aria-describedby="votesHint">
+              <option value="1" selected>Standard</option>
+              <option value="3">Careful (3 readings)</option>
             </select>
+            <p class="field-hint" id="votesHint">Careful reads every staff three times and keeps the majority: about 3x the API cost.</p>
           </div>
-
           <div class="control-group" id="pageRangeGroup">
-            <label for="pageRange">Pages (Optional)</label>
-            <input type="text" id="pageRange" class="form-input" placeholder="e.g. 1-2 or leave blank for all" title="Page range for multi-page PDFs">
+            <label for="pageRange">Pages (optional)</label>
+            <input type="text" id="pageRange" class="form-input" placeholder="all, or e.g. 1-2" aria-describedby="pageHint">
+            <p class="field-hint" id="pageHint">For PDFs with several pages.</p>
           </div>
-
-          <div class="control-group" id="mandolinTabGroup">
-            <label for="mandolinTabToggle">Mandolin TAB Engine</label>
-            <div class="checkbox-toggle-wrapper">
-              <label class="toggle-switch">
-                <input type="checkbox" id="mandolinTabToggle" checked>
-                <span class="toggle-slider"></span>
-              </label>
-              <span class="toggle-label">Playable Mandolin TAB</span>
-            </div>
-          </div>
-
-          <div class="control-group" id="skillLevelGroup">
-            <label for="skillLevelSelect">Fingering Skill Level</label>
-            <select id="skillLevelSelect" class="form-select">
-              <option value="beginner" selected>Beginner (Frets 0-7, Open Strings)</option>
-              <option value="advanced">Advanced (Position Shifts, Higher Frets)</option>
-            </select>
-          </div>
-
           <div class="control-actions">
-            <button id="transcribeBtn" class="btn btn-primary btn-glow" disabled>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" class="sparkle-icon">
-                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
-              </svg>
-              <span>Transcribe to MusicXML</span>
+            <button type="button" id="transcribeBtn" class="btn btn-primary btn-glow" disabled>
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>
+              <span>Convert</span>
             </button>
           </div>
         </div>
       </section>
 
-      <!-- Processing State Card -->
-      <section class="card progress-card hidden" id="progressSection">
+      <!-- Progress -->
+      <section class="card progress-card hidden" id="progressSection" aria-labelledby="progressTitle">
         <div class="progress-header">
-          <div class="spinner-ring"></div>
+          <div class="spinner-ring" aria-hidden="true"></div>
           <div class="progress-heading">
-            <h3 id="progressTitle">Transcribing...</h3>
-            <p id="progressSubtitle" class="text-muted">Starting</p>
+            <h3 id="progressTitle">Converting...</h3>
+            <p id="progressSubtitle" class="text-muted" role="status" aria-live="polite">Starting</p>
           </div>
           <button type="button" class="btn btn-outline btn-sm" id="cancelBtn">Cancel</button>
         </div>
-        <div class="progress-bar-container">
+        <div class="progress-bar-container" role="progressbar" aria-label="Conversion progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBarBox">
           <div class="progress-bar-fill" id="progressBar"></div>
         </div>
-        <ul class="progress-log" id="progressLog"></ul>
+        <ul class="progress-log" id="progressLog" aria-label="Progress details"></ul>
       </section>
 
-      <!-- Result Showcase -->
-      <section class="card result-card hidden" id="resultSection">
-        <!-- Results Header & Tabs -->
+      <!-- 2. Arrangement -->
+      <section class="card arrangement-card" id="arrangementSection" aria-labelledby="arrHeading">
+        <h2 class="section-title" id="arrHeading"><span class="step-num" aria-hidden="true">2</span> Your instrument and tab</h2>
+        <div class="arr-grid">
+          <div class="control-group toggle-group">
+            <span class="group-label" id="tabToggleLabel">Tab staff</span>
+            <label class="checkbox-toggle-wrapper" for="mandolinTabToggle">
+              <span class="toggle-switch">
+                <input type="checkbox" id="mandolinTabToggle" checked aria-describedby="tabToggleLabel">
+                <span class="toggle-slider" aria-hidden="true"></span>
+              </span>
+              <span class="toggle-label">Add tab under the notes</span>
+            </label>
+          </div>
+          <div class="control-group">
+            <label for="instrumentSelect">Instrument</label>
+            <select id="instrumentSelect" class="form-select arr-input"></select>
+          </div>
+          <div class="control-group">
+            <label for="tuningSelect">Tuning</label>
+            <select id="tuningSelect" class="form-select arr-input"></select>
+            <fieldset class="custom-tuning hidden" id="customTuning">
+              <legend>Courses, lowest first</legend>
+              <div class="note-boxes">
+                <input type="text" class="form-input note-box arr-input" id="tune1" aria-label="Lowest course" value="G3">
+                <input type="text" class="form-input note-box arr-input" id="tune2" aria-label="Second course" value="D4">
+                <input type="text" class="form-input note-box arr-input" id="tune3" aria-label="Third course" value="A4">
+                <input type="text" class="form-input note-box arr-input" id="tune4" aria-label="Highest course" value="E5">
+              </div>
+            </fieldset>
+          </div>
+          <div class="control-group narrow">
+            <label for="capoInput">Capo fret</label>
+            <input type="number" id="capoInput" class="form-input arr-input" min="0" max="7" value="0">
+          </div>
+          <div class="control-group">
+            <label for="styleSelect">Fingering style</label>
+            <select id="styleSelect" class="form-select arr-input" aria-describedby="styleHint"></select>
+            <p class="field-hint" id="styleHint"></p>
+          </div>
+          <div class="control-group narrow hidden" id="positionGroup">
+            <label for="positionInput">Position (index finger fret)</label>
+            <input type="number" id="positionInput" class="form-input arr-input" min="1" max="15" value="5">
+          </div>
+          <div class="control-group narrow">
+            <label for="maxFretInput">Highest fret</label>
+            <input type="number" id="maxFretInput" class="form-input arr-input" min="5" max="29" value="20">
+          </div>
+          <div class="control-group">
+            <label for="skillLevelSelect">Skill level</label>
+            <select id="skillLevelSelect" class="form-select arr-input">
+              <option value="beginner" selected>Beginner (low frets, open strings)</option>
+              <option value="advanced">Advanced (shifts and higher frets allowed)</option>
+            </select>
+          </div>
+        </div>
+        <div class="arr-summary" id="arrSummary" aria-live="polite">
+          <p id="arrSummaryText">These settings apply to the next conversion, and you can change them afterwards.</p>
+          <ul id="arrSummaryList" class="arr-facts"></ul>
+        </div>
+      </section>
+
+      <!-- 3. Results -->
+      <section class="card result-card hidden" id="resultSection" aria-labelledby="scoreTitleDisplay">
         <div class="result-header">
           <div class="score-summary">
-            <h2 id="scoreTitleDisplay">Maid Behind the Bar</h2>
+            <h2 id="scoreTitleDisplay">Score</h2>
             <div class="badge-row">
-              <span class="badge badge-meta" id="scoreComposerBadge">Traditional</span>
-              <span class="badge badge-meta" id="scoreKeyBadge">D major</span>
-              <span class="badge badge-meta" id="scoreTimeBadge">4/4</span>
-              <span class="badge badge-meta" id="scoreMeasuresBadge">21 Measures</span>
-              <span class="badge badge-meta" id="engineBadge">Engine: —</span>
-              <span class="badge badge-success" id="schemaBadge">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                MusicXML 4.0 Validated
-              </span>
+              <span class="badge badge-meta" id="scoreComposerBadge"></span>
+              <span class="badge badge-meta" id="scoreKeyBadge"></span>
+              <span class="badge badge-meta" id="scoreTimeBadge"></span>
+              <span class="badge badge-meta" id="scoreMeasuresBadge"></span>
+              <span class="badge badge-meta" id="engineBadge"></span>
+              <span class="badge badge-success" id="schemaBadge"></span>
             </div>
           </div>
-
           <div class="result-actions">
-            <button id="copyXmlBtn" class="btn btn-outline btn-sm">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-              <span>Copy XML</span>
-            </button>
-            <button id="downloadXmlBtn" class="btn btn-primary btn-sm">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Download .musicxml</span>
-            </button>
-            <button id="saveLocalBtn" class="btn btn-secondary btn-sm" title="Save file to local project folder">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-              <span>Save to Disk</span>
-            </button>
+            <button type="button" id="copyXmlBtn" class="btn btn-outline btn-sm"><span>Copy MusicXML</span></button>
+            <button type="button" id="downloadXmlBtn" class="btn btn-primary btn-sm"><span>Download .musicxml</span></button>
+            <button type="button" id="saveLocalBtn" class="btn btn-secondary btn-sm"><span>Save to the transcriptions folder</span></button>
           </div>
         </div>
 
-        <!-- Review notices: bars to check and engine warnings -->
-        <div class="notice-box hidden" id="resultNotices">
+        <div class="notice-box hidden" id="resultNotices" role="status">
           <strong id="reviewBarsText"></strong>
           <ul class="notice-list" id="warningsList"></ul>
         </div>
 
-        <!-- Tab Navigation -->
-        <div class="tabs-nav">
-          <button class="tab-btn active" data-tab="scoreTab">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
-            Interactive Sheet Music Score
-          </button>
-          <button class="tab-btn" data-tab="xmlTab">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-            MusicXML Source Code
-          </button>
-          <button class="tab-btn" data-tab="abcTab">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
-            ABC (edit)
-          </button>
-          <button class="tab-btn" data-tab="validationTab">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            Schema & Score Details
-          </button>
+        <div class="tabs-nav" role="tablist" aria-label="Result views">
+          <button type="button" class="tab-btn active" role="tab" id="tab-scoreTab" aria-selected="true" aria-controls="scoreTab" data-tab="scoreTab">Score</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-asciiTab" aria-selected="false" aria-controls="asciiTab" data-tab="asciiTab" tabindex="-1">Tab (text)</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-aboutTab" aria-selected="false" aria-controls="aboutTab" data-tab="aboutTab" tabindex="-1">About this piece</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-abcTab" aria-selected="false" aria-controls="abcTab" data-tab="abcTab" tabindex="-1">Fix notes (ABC)</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-xmlTab" aria-selected="false" aria-controls="xmlTab" data-tab="xmlTab" tabindex="-1">MusicXML</button>
+          <button type="button" class="tab-btn" role="tab" id="tab-infoTab" aria-selected="false" aria-controls="infoTab" data-tab="infoTab" tabindex="-1">How it was read</button>
         </div>
 
-        <!-- Tab 1: Visual Score Display -->
-        <div class="tab-content active" id="scoreTab">
+        <!-- Score -->
+        <div class="tab-content active" id="scoreTab" role="tabpanel" aria-labelledby="tab-scoreTab">
           <div class="score-toolbar">
-            <!-- Audio Playback Controls -->
             <div class="playback-controls">
-              <button id="playBtn" class="btn btn-play" title="Play audio preview">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              <button type="button" id="playBtn" class="btn btn-play">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                 <span>Play</span>
               </button>
-              <button id="stopBtn" class="btn btn-icon-round" title="Stop playback">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+              <button type="button" id="stopBtn" class="btn btn-icon-round" aria-label="Stop playback">
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
               </button>
-
               <div class="tempo-control">
-                <label for="tempoSlider">BPM: <span id="tempoValue">120</span></label>
-                <input type="range" id="tempoSlider" min="50" max="220" value="120">
+                <label for="tempoSlider">Speed: <span id="tempoValue">120</span> bpm</label>
+                <input type="range" id="tempoSlider" min="40" max="220" value="120">
               </div>
-
               <div class="instrument-control">
+                <label for="synthSound" class="visually-hidden">Playback sound</label>
                 <select id="synthSound" class="form-select select-sm">
-                  <option value="piano">Acoustic Piano</option>
-                  <option value="synth">Ambient Bells</option>
-                  <option value="marimba">Wood Marimba</option>
+                  <option value="pluck">Plucked string</option>
+                  <option value="piano">Piano</option>
+                  <option value="marimba">Marimba</option>
                 </select>
               </div>
             </div>
-
-            <!-- Zoom & View Controls -->
             <div class="zoom-controls">
-              <button id="zoomOutBtn" class="btn btn-icon-round" title="Zoom Out">−</button>
-              <span id="zoomLevelText">100%</span>
-              <button id="zoomInBtn" class="btn btn-icon-round" title="Zoom In">+</button>
-              <button id="zoomResetBtn" class="btn btn-icon-round" title="Reset Zoom">↺</button>
+              <button type="button" id="zoomOutBtn" class="btn btn-icon-round" aria-label="Zoom out">&minus;</button>
+              <span id="zoomLevelText" aria-live="polite">100%</span>
+              <button type="button" id="zoomInBtn" class="btn btn-icon-round" aria-label="Zoom in">+</button>
+              <button type="button" id="zoomResetBtn" class="btn btn-icon-round" aria-label="Reset zoom">&#8634;</button>
             </div>
           </div>
-
-          <!-- Canvas / OSMD Score Container -->
           <div class="osmd-container-wrapper">
             <div id="osmdCanvas" class="osmd-canvas"></div>
           </div>
         </div>
 
-        <!-- Tab 2: Raw XML Inspector -->
-        <div class="tab-content" id="xmlTab">
+        <!-- ASCII tab -->
+        <div class="tab-content" id="asciiTab" role="tabpanel" aria-labelledby="tab-asciiTab">
+          <div class="xml-viewer-header">
+            <span>Plain-text tab - same fingering as the score</span>
+            <span class="viewer-actions">
+              <button type="button" class="btn btn-outline btn-sm" id="copyTabBtn">Copy</button>
+              <button type="button" class="btn btn-outline btn-sm" id="downloadTabBtn">Download .txt</button>
+            </span>
+          </div>
+          <pre class="xml-code-block ascii-tab" id="asciiTabContent" tabindex="0" aria-label="Text tab"></pre>
+        </div>
+
+        <!-- About -->
+        <div class="tab-content" id="aboutTab" role="tabpanel" aria-labelledby="tab-aboutTab">
+          <div id="aboutContent"></div>
+          <div class="ai-note-box">
+            <div class="ai-note-head">
+              <h4>AI note</h4>
+              <button type="button" class="btn btn-secondary btn-sm" id="aiNoteBtn">Write an AI note</button>
+            </div>
+            <p class="field-hint" id="aiNoteHint">A short friendly write-up from the facts above, using the AI service chosen in step 1 (one short call).</p>
+            <div id="aiNoteContent" class="ai-note" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <!-- ABC -->
+        <div class="tab-content" id="abcTab" role="tabpanel" aria-labelledby="tab-abcTab">
+          <p class="field-hint abc-hint" id="abcHint">The score as ABC text (L:1/8, so a plain letter is an eighth note). Fix a misread note or bar, then press Apply to redraw the notation and tab.</p>
+          <label for="abcEditor" class="visually-hidden">ABC text</label>
+          <textarea id="abcEditor" class="abc-editor" spellcheck="false" aria-describedby="abcHint"></textarea>
+          <div class="abc-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="applyAbcBtn">Apply</button>
+          </div>
+        </div>
+
+        <!-- MusicXML -->
+        <div class="tab-content" id="xmlTab" role="tabpanel" aria-labelledby="tab-xmlTab">
           <div class="xml-viewer-header">
             <span class="xml-filename" id="xmlFilenameDisplay">score.musicxml</span>
             <span class="xml-lines-count" id="xmlLinesCount">0 lines</span>
           </div>
-          <pre class="xml-code-block"><code id="xmlCodeContent"></code></pre>
+          <pre class="xml-code-block" tabindex="0" aria-label="MusicXML source"><code id="xmlCodeContent"></code></pre>
         </div>
 
-        <!-- Tab 3: Editable ABC -->
-        <div class="tab-content" id="abcTab">
-          <p class="field-hint abc-hint">The score as ABC (L:1/8, so a plain letter is an eighth note). Fix a misread note or bar here, then apply to re-render the notation and TAB.</p>
-          <textarea id="abcEditor" class="abc-editor" spellcheck="false"></textarea>
-          <div class="abc-actions">
-            <button type="button" class="btn btn-primary btn-sm" id="applyAbcBtn">Apply edits</button>
-          </div>
-        </div>
-
-        <!-- Tab 4: Validation & Metadata Details -->
-        <div class="tab-content" id="validationTab">
-          <div class="metadata-grid">
-            <div class="meta-card">
-              <span class="meta-label">Title</span>
-              <span class="meta-value" id="metaTitle">—</span>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Composer / Arranger</span>
-              <span class="meta-value" id="metaComposer">—</span>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Key Signature</span>
-              <span class="meta-value" id="metaKey">—</span>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Time Signature</span>
-              <span class="meta-value" id="metaTime">—</span>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Initial Clef</span>
-              <span class="meta-value" id="metaClef">—</span>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Measures</span>
-              <span class="meta-value" id="metaMeasures">—</span>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Tempo</span>
-              <span class="meta-value" id="metaTempo">—</span>
-            </div>
-            <div class="meta-card">
-              <span class="meta-label">Parts / Instruments</span>
-              <span class="meta-value" id="metaParts">—</span>
-            </div>
-          </div>
-
-          <div class="validation-details-box" style="margin-bottom: 1.25rem;" id="mandolinAuditCard">
-            <h4>🪕 Mandolin Fingering & Tablature Audit (Spec Compliance)</h4>
-            <div class="mandolin-stats-grid">
-              <div class="m-stat-box">
-                <span class="m-stat-label">Tuning</span>
-                <span class="m-stat-value">G3 · D4 · A4 · E5</span>
-                <span class="m-stat-sub">4 Doubled Courses</span>
-              </div>
-              <div class="m-stat-box">
-                <span class="m-stat-label">1st Position Focus</span>
-                <span class="m-stat-value" id="mFirstPosRatio">—</span>
-                <span class="m-stat-sub">Frets 0–7 (Comfort Zone)</span>
-              </div>
-              <div class="m-stat-box">
-                <span class="m-stat-label">Open Strings</span>
-                <span class="m-stat-value" id="mOpenCount">—</span>
-                <span class="m-stat-sub">Idiomatic Open Notes</span>
-              </div>
-              <div class="m-stat-box">
-                <span class="m-stat-label">Highest Fret</span>
-                <span class="m-stat-value" id="mHighestFret">—</span>
-                <span class="m-stat-sub">Fretboard Reach</span>
-              </div>
-            </div>
-            <div class="course-distribution-bar">
-              <span class="course-bar-label">Course Distribution:</span>
-              <span id="mCourseDist" class="course-dist-text">E: — | A: — | D: — | G: —</span>
-            </div>
-          </div>
-
+        <!-- Provenance + checks -->
+        <div class="tab-content" id="infoTab" role="tabpanel" aria-labelledby="tab-infoTab">
+          <div id="provenanceContent" class="validation-details-box"></div>
           <div class="validation-details-box">
-            <h4>W3C MusicXML 4.0 Schema Audit</h4>
+            <h4>MusicXML 4.0 schema check</h4>
             <div id="validationStatusBox" class="validation-status-box valid">
-              <div class="status-icon">✓</div>
+              <div class="status-icon" aria-hidden="true">&#10003;</div>
               <div>
-                <strong>Validated against official MusicXML 4.0 XSD</strong>
-                <p id="validationMessage">All elements conform strictly to the partwise music score specification.</p>
+                <strong id="validationHeadline"></strong>
+                <p id="validationMessage"></p>
               </div>
             </div>
             <ul id="validationErrorsList" class="errors-list"></ul>
           </div>
+          <div class="metadata-grid" id="metaGrid"></div>
         </div>
       </section>
     </main>
 
-    <!-- Settings Modal -->
+    <!-- Settings -->
     <div class="modal-backdrop hidden" id="settingsModal">
-      <div class="modal-card">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
         <div class="modal-header">
-          <h3>AI Connection Settings</h3>
-          <button class="btn-icon" id="closeSettingsBtn">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <h3 id="settingsTitle">AI services and keys</h3>
+          <button type="button" class="btn-icon" id="closeSettingsBtn" aria-label="Close settings">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
-
         <div class="modal-body">
           <div class="pro-info-banner">
-            <div class="banner-icon">💡</div>
-            <div>
-              <strong>Multi-Provider API Keys:</strong>
-              <p>Only needed for the AI engine. PDFs exported from notation software are read exactly without any key. DeepSeek runs through the Qwen Token Plan key.</p>
-            </div>
+            <p><strong>Keys are optional.</strong> PDFs exported from notation software are read exactly without one,
+              and Audiveris reads scans offline. A key lets an AI model check and repair scans and photos.
+              Keys stay on this computer and are only sent to that service.</p>
           </div>
 
-          <!-- Google Gemini Key -->
           <div class="form-field">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.35rem;">
-              <label for="geminiKeyInput" style="margin-bottom:0;">Google Gemini API Key</label>
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="banner-link" style="font-size:0.75rem;">Get Gemini Key →</a>
-            </div>
+            <label for="anyKeyInput">Paste any key - SheetXML works out which service it belongs to</label>
             <div class="input-with-button">
-              <input type="password" id="geminiKeyInput" class="form-input" placeholder="AIzaSy... or AQ....">
-              <button type="button" class="btn btn-outline btn-sm" id="toggleGeminiKeyVisibility">Show</button>
+              <input type="password" id="anyKeyInput" class="form-input" autocomplete="off" placeholder="AIza..., sk-ant-..., sk-sp-..., sk-or-...">
+              <button type="button" class="btn btn-primary btn-sm" id="anyKeyBtn">Add</button>
             </div>
-            <p class="field-hint">Used for Gemini models (3.8 Flash, 3.1 Pro). The free tier has a small daily quota.</p>
+            <div class="input-with-button hidden" id="anyKeyPick">
+              <label for="anyKeyProvider" class="visually-hidden">Service for this key</label>
+              <select id="anyKeyProvider" class="form-select"></select>
+              <button type="button" class="btn btn-primary btn-sm" id="anyKeyPickBtn">Save for this service</button>
+            </div>
           </div>
 
-          <!-- Qwen Key -->
-          <div class="form-field" style="margin-top: 1rem;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.35rem;">
-              <label for="qwenKeyInput" style="margin-bottom:0;">Qwen / Token Plan / DashScope Key</label>
-              <span style="font-size:0.72rem; color:#818cf8; background:rgba(99,102,241,0.12); padding:2px 8px; border-radius:4px; border:1px solid rgba(99,102,241,0.25);">Accepts sk-sp- Token Plan</span>
-            </div>
-            <div class="input-with-button">
-              <input type="password" id="qwenKeyInput" class="form-input" placeholder="sk-sp-... or sk-...">
-              <button type="button" class="btn btn-outline btn-sm" id="toggleQwenKeyVisibility">Show</button>
-            </div>
-            <p class="field-hint">Used for Qwen models and DeepSeek V4.1 Flash (Token Plan keys start with sk-sp-).</p>
-          </div>
-
-          <div id="verifyStatusBox" class="verify-status hidden"></div>
+          <div id="providerRows" class="provider-rows"></div>
+          <p class="field-hint">A Claude Pro or Max subscription does not include API access: the Claude API is billed separately in the Claude Console.</p>
+          <div id="verifyStatusBox" class="verify-status hidden" role="status" aria-live="polite"></div>
         </div>
-
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="testKeyBtn">Test Connections</button>
-          <button type="button" class="btn btn-primary" id="saveKeyBtn">Save & Apply</button>
+          <button type="button" class="btn btn-secondary" id="closeSettingsBtn2">Close</button>
+          <button type="button" class="btn btn-primary" id="saveKeyBtn">Save keys</button>
         </div>
       </div>
     </div>
 
-    <!-- Notification Toast -->
-    <div id="toast" class="toast hidden"></div>
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
   <script src="app.js"></script>

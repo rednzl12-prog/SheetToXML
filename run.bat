@@ -1,6 +1,7 @@
 @echo off
 title SheetXML - Sheet Music to MusicXML + Mandolin TAB
 cd /d "%~dp0"
+set PYTHONIOENCODING=utf-8
 echo ==============================================================
 echo  SheetXML - Sheet Music to MusicXML + Mandolin TAB
 echo ==============================================================

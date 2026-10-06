@@ -36,7 +36,7 @@ import omr
 
 WORKERS = 4
 REPAIRS = 2
-THINKING = {"gemini": "low", "qwen": "off", "deepseek": "off"}
+THINKING = {p: v["thinking"] or "" for p, v in llm.PROVIDERS.items()}   # gemini low, qwen/deepseek off, ...
 CACHE_DIR: Optional[Path] = None        # dev only: the CLI caches model answers here
 
 CLEFS = {   # ABC letters by staff position, a sane MIDI range, diatonic index (octave * 7 + step) of the bottom line

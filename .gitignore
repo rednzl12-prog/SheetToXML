@@ -6,3 +6,8 @@ __pycache__/
 transcriptions/*
 !transcriptions/.gitkeep
 .DS_Store
+
+# release builds (python -B packaging/build.py)
+build/
+dist/
+packaging/vendor/
