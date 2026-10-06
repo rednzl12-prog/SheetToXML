@@ -5,7 +5,7 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules
 
 ROOT = Path(SPECPATH).parent
-DEV = {"test_models.py", "launcher.cs"}
+DEV = {"launcher.cs"}
 mods = [p.stem for p in ROOT.glob("*.py") if p.stem != "app" and not p.stem.startswith(("test_", "bench"))]
 datas = [(str(ROOT / "static"), "static"), (str(ROOT / "schemas"), "schemas")]
 datas += [(str(p), "resources") for p in (ROOT / "resources").iterdir() if p.is_file() and p.name not in DEV]
