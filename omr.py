@@ -12,7 +12,7 @@ import statistics
 import warnings
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import pypdfium2 as pdfium
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont, ImageOps
@@ -266,7 +266,7 @@ def measures(img: Image.Image, system: System) -> Tuple[List[Tuple[int, int]], b
     x_start, x_end = (lines[0], lines[2]) if lines else (0, W)
 
     def ink(x: int, y: int) -> bool:
-        return 0 <= y < H and px[x, y] > 0
+        return 0 <= x < W and 0 <= y < H and px[x, y] > 0
 
     shut = _vfill(bw, round(0.35 * sp)).load()          # hollow heads filled, so they count as attached
 
@@ -283,28 +283,44 @@ def measures(img: Image.Image, system: System) -> Tuple[List[Tuple[int, int]], b
     dots = {y for s in staves for y in range(round(s[1]), round(s[3]))} - on_line   # repeat dots: the middle spaces
     far, wide = max(5, round(0.45 * sp)), round(sp)
 
-    def attached(x: int, y_edge: int, step: int) -> bool:
-        """Ink joined to the column just past an end line that reaches 0.45 spaces out: the head or beam of a
-        stem. A measure number printed above a barline is separated from it by a gap."""
-        lo, hi = sorted((y_edge + 3 * step, y_edge + (round(0.9 * sp)) * step))
-        stack = [(x + d, y_edge + 3 * step) for d in (-1, 0, 1) if ink(x + d, y_edge + 3 * step)]
+    def attached(x: int, y_edge: int, step: int) -> int:
+        """Longest horizontal run in the ink joined to the column just past an end line, when that ink reaches
+        0.45 spaces out (else 0): the head or beam of a stem, or a measure number touching a barline. The flood
+        starts on the first row clear of the staff line, so even a 1 px gap on a blurred scan keeps a number apart."""
+        d = 1                                # first row clear of the staff line here (blurred lines run 4+ px thick)
+        while d < 0.4 * sp and sum(ink(x + i, y_edge + d * step) for i in range(-wide, wide + 1)) >= 1.4 * wide:
+            d += 1
+        start = y_edge + d * step
+        lo, hi = sorted((start, y_edge + (round(0.9 * sp)) * step))
+        stack = [(x + d, start) for d in (-1, 0, 1) if ink(x + d, start)]
         seen = set(stack)
+        reached = False
         while stack:
             cx, cy = stack.pop()
-            if abs(cy - y_edge) >= far:
-                return True
+            reached = reached or abs(cy - y_edge) >= far
             for nx, ny in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
                 if abs(nx - x) <= wide and lo <= ny <= hi and (nx, ny) not in seen and ink(nx, ny):
                     seen.add((nx, ny))
                     stack.append((nx, ny))
-        return False
+        if not reached:
+            return 0
+        best = run = 0                       # longest horizontal run: heads and beams are solid, digits are strokes
+        for p in sorted(seen, key=lambda q: (q[1], q[0])):
+            run = run + 1 if (p[0] - 1, p[1]) in seen else 1
+            best = max(best, run)
+        return best
 
     bars: List[List[int]] = []
     for x in full:
-        if attached(x, y0, -1) or attached(x, y1, 1):
+        # a full-height column with nothing below it is a barline unless a notehead (solid) sits on top: a stem
+        # spanning the staff with a narrow top end would need its head below the staff, attached at the bottom
+        if attached(x, y1, 1) or attached(x, y0, -1) >= 0.8 * sp:
             continue
-        broad = [y for y in between if run(x, y) > 0.6 * sp]
-        if len(broad) > 0.1 * len(between) and not set(broad) <= dots:     # notehead or beam attached
+        widths = [run(x, y) for y in between]
+        broad = [y for y, w in zip(between, widths) if w > 0.6 * sp]
+        bare = [w for y, w in zip(between, widths) if y not in dots] or widths     # repeat dots may touch it
+        thick = min(bare) > 0.3 * sp and max(bare) - min(bare) <= 0.25 * sp and max(bare) <= sp   # heavy barline
+        if len(broad) > 0.1 * len(between) and not set(broad) <= dots and not thick:   # notehead or beam attached
             continue
         if bars and x - bars[-1][-1] <= 1.5 * sp:                      # thin+thick / repeat barlines
             bars[-1].append(x)
@@ -343,18 +359,33 @@ def _stem(px, cx: int, cy: int, sp: float) -> Optional[Tuple[int, int, int]]:
     return best
 
 
-def _beams(px, stem: Tuple[int, int, int], cy: int, sp: float) -> int:
+def _beams(px, stem: Tuple[int, int, int], cy: int, sp: float, lines: frozenset = frozenset()) -> int:
     """Beams or flags at the stem's far end: thick ink runs beside the stem and joined to it, counted from
-    the tip inward (a fingering digit touching the tip is not joined sideways, so it doesn't count)."""
+    the tip inward (a fingering digit touching the tip is not joined sideways, so it doesn't count).
+    A thin run centred on a staff line (`lines`: its rows) is the line; on a blurred scan two or three beams merge
+    into one run, which then counts by its length (beam 0.5 + gap 0.25 staff spaces)."""
     x, a, b = stem
     up = cy - a > b - cy
-    ys = list(range(a, min(a + round(2.6 * sp), cy - round(0.8 * sp)))) if up else         list(range(b, max(b - round(2.6 * sp), cy + round(0.8 * sp)), -1))
+    ys = list(range(a, min(a + round(2.6 * sp), cy - round(0.8 * sp)))) if up else \
+        list(range(b, max(b - round(2.6 * sp), cy + round(0.8 * sp)), -1))
 
     def ink(cx: int, cy_: int) -> bool:
         try:
             return px[cx, cy_] > 0
         except IndexError:
             return False
+
+    def beam(col: int, run: List[int]) -> bool:
+        """A long run continues as thick a little further out: merged beams (a flag thins and curves away)."""
+        mid = run[len(run) // 2]
+        if not ink(col, mid):
+            return False
+        lo = hi = mid
+        while ink(col, lo - 1):
+            lo -= 1
+        while ink(col, hi + 1):
+            hi += 1
+        return hi - lo + 1 >= 0.8 * len(run)
 
     best = 0
     for side in (-1, 1):
@@ -363,8 +394,10 @@ def _beams(px, stem: Tuple[int, int, int], cy: int, sp: float) -> int:
             if y is not None and ink(col, y):
                 run.append(y)
                 continue
-            if len(run) >= 0.25 * sp:
-                runs += any(all(ink(c, r) for c in range(x, col + side, side)) for r in run)
+            line = run and run[len(run) // 2] in lines and len(run) <= len(lines) // 5 + 2
+            if len(run) >= 0.25 * sp and not line and any(all(ink(c, r) for c in range(x, col + side, side)) for r in run):
+                merged = len(run) >= 1.1 * sp and beam(col + side * round(0.5 * sp), run)
+                runs += 1 if not merged else 2 if len(run) < 1.85 * sp else 3
             run = []
         best = max(best, runs)
     return best
@@ -397,7 +430,8 @@ def _dotted(light, cx: int, cy: int, sp: float) -> bool:
                         except IndexError:
                             pass
             xs, ys = [q[0] for q in pts], [q[1] for q in pts]
-            if min(xs) >= x0 and max(xs) < x1 and min(ys) >= y0 and max(ys) < y1                     and max(xs) - min(xs) <= 0.55 * sp and max(ys) - min(ys) <= 0.55 * sp:
+            if min(xs) >= x0 and max(xs) < x1 and min(ys) >= y0 and max(ys) < y1 \
+                    and max(xs) - min(xs) <= 0.55 * sp and max(ys) - min(ys) <= 0.55 * sp:
                 return True
     return False
 
@@ -418,6 +452,9 @@ def noteheads(img: Image.Image, system: System) -> List[Tuple[int, int, Optional
     if not staves:
         return []
     staff = staves[0]
+    rows = _row_ink(bw)
+    line_rows = frozenset(y for c in staff for y in range(round(c) - round(0.3 * sp), round(c) + round(0.3 * sp) + 1)
+                      if 0 <= y < bw.height and rows[y] >= rows[round(c)] / 2)      # the rows each staff line covers
     k = max(3, round(0.45 * sp) | 1)
     core = bw.filter(ImageFilter.MinFilter(k))
     W, H = core.size
@@ -453,11 +490,119 @@ def noteheads(img: Image.Image, system: System) -> List[Tuple[int, int, Optional
         if cx < x_min or not stem:                                 # no stem: 'tr', beam stubs, digits
             continue
         step = round((staff[-1] - cy) / (sp / 2))                  # bottom line = 0
-        n = _beams(raw, stem, round(cy), sp)
+        n = _beams(raw, stem, round(cy), sp, line_rows)
         dot = Fraction(3, 2) if _dotted(raw, round(cx), round(cy), sp) else 1
         dur = Fraction(1, 4 * 2 ** n) * dot if n <= 4 else None
         heads.append((left + round(cx), step, dur))
     return sorted(heads)
+
+
+SHARP_STEPS, FLAT_STEPS = (8, 5, 9, 6, 3, 7, 4), (4, 7, 3, 6, 2, 5, 1)   # treble staff steps of F C G D A E B / B E A D G C F
+
+
+def key_signature(img: Image.Image, system: System) -> Optional[int]:
+    """Key-signature accidentals right after the clef on the top staff: +n sharps, -n flats, 0 none, None unclear.
+
+    Staff lines are erased where nothing crosses them, then the blobs after the clef are classified by shape
+    (sharp: two long vertical strokes of equal reach; flat: one stroke with a bowl at its foot on the right)
+    and their heights must follow F C G D A E B / B E A D G C F, the pattern every clef shares up to a shift.
+    # ponytail: staff-space geometry only, a template match for unusual fonts
+    """
+    bw = _binarize(img.crop(system.box))
+    sp, (W, H) = system.spacing, bw.size
+    staves = [s for s in _staves(_line_centers(_row_ink(_long_runs(bw, max(16, W // 20)))))
+              if len(s) == 5 and abs((s[-1] - s[0]) / 4 - sp) <= 0.2 * sp]
+    if not staves:
+        return None
+    staff = staves[0]
+    edge = bw.crop((0, round(staff[0]) - 1, W, round(staff[0]) + 2)).getbbox()
+    if not edge:
+        return None
+    x0, x1 = edge[0], min(W, edge[0] + round(16 * sp))
+    y0, y1 = max(0, round(staff[0] - 2 * sp)), min(H, round(staff[-1] + 2 * sp))
+    px = bw.load()
+    ink = {(x, y) for y in range(y0, y1) for x in range(x0, x1) if px[x, y]}
+    rows = _row_ink(bw)
+    for c in staff:                                    # erase the staff lines where no symbol crosses them
+        band = [y for y in range(round(c - 0.3 * sp), round(c + 0.3 * sp) + 1) if rows[y] >= rows[round(c)] / 2]
+        if band:
+            band = list(range(band[0] - 1, band[-1] + 2))       # plus the ragged edge rows of a scanned line
+            for x in range(x0, x1):
+                if (x, band[0] - 1) not in ink or (x, band[-1] + 1) not in ink:
+                    ink.difference_update((x, y) for y in band)
+    erased = set(ink)
+    blobs = []
+    while ink:
+        stack = [ink.pop()]
+        pts = list(stack)
+        while stack:
+            cx, cy = stack.pop()
+            for q in ((cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)):
+                if q in ink:
+                    ink.discard(q)
+                    stack.append(q)
+                    pts.append(q)
+        if len(pts) >= 0.15 * sp * sp:
+            blobs.append(pts)
+    boxes = sorted((min(p[0] for p in b), min(p[1] for p in b), max(p[0] for p in b), max(p[1] for p in b), b)
+                   for b in blobs)
+    clef = next((b for b in boxes if b[3] - b[1] >= 2.5 * sp and b[0] < x0 + 3 * sp), None)
+    if clef is None:
+        return None
+
+    # vertical strokes after the clef: columns whose longest ink run is 1.6-3.6 staff spaces (blur can close the
+    # gap between a sharp's two strokes in places, so strokes come from runs, not from connected blobs)
+    def longest(x: int) -> Tuple[int, int, int]:
+        best, a = (0, 0, 0), None
+        for y in range(y0, y1 + 1):
+            if y < y1 and px[x, y]:
+                a = y if a is None else a
+            elif a is not None:
+                best, a = max(best, (y - a, a, y - 1)), None
+        return best
+
+    strokes: List[List[Tuple[int, int, int, int]]] = []          # per stroke: (x, length, top, bottom) columns
+    for x in range(clef[2] + 1, min(x1, clef[2] + round(10 * sp))):
+        n, a, b = longest(x)
+        if 1.6 * sp <= n <= 3.6 * sp:
+            if strokes and x - strokes[-1][-1][0] <= 1:
+                strokes[-1].append((x, n, a, b))
+            else:
+                strokes.append([(x, n, a, b)])
+        elif n > 3.6 * sp:                                     # a note stem: the key signature is over
+            break
+    def bowl(x: int, y: int) -> bool:
+        """Ink (staff lines erased) 0.3-0.7 spaces right of a stroke, 0.2-0.6 spaces above y: a flat's bowl."""
+        return any((x + d, y - e) in erased for d in range(round(0.3 * sp), round(0.7 * sp))
+                   for e in range(round(0.2 * sp), round(0.6 * sp)))
+
+    found: List[Tuple[str, float]] = []
+    prev, i = clef[2], 0
+    while i < len(strokes):
+        st = strokes[i]
+        xa, top, bot = st[0][0], min(c[2] for c in st), max(c[3] for c in st)
+        if xa - prev > (2.5 if not found else 1.3) * sp:
+            break
+        nxt = strokes[i + 1] if i + 1 < len(strokes) else None
+        if nxt and nxt[0][0] - st[-1][0] <= 0.7 * sp and abs(min(c[2] for c in nxt) - top) <= 0.6 * sp \
+                and abs(max(c[3] for c in nxt) - bot) <= 0.6 * sp:
+            k, pos, prev, i = "sharp", (top + bot) / 2, nxt[-1][0], i + 2
+        elif bowl(st[-1][0], bot) and not bowl(st[-1][0], top + round(0.6 * sp)) and not any(
+                all((x, y) in erased for x in range(st[-1][0], st[-1][0] + round(1.1 * sp)))
+                for y in range(bot - round(0.6 * sp), bot + 1)):
+            k, pos, prev, i = "flat", bot - 0.5 * sp, st[-1][0] + round(0.6 * sp), i + 1
+        else:
+            break
+        if found and k != found[0][0]:
+            break
+        found.append((k, (staff[-1] - pos) / (sp / 2)))
+    if not found:
+        return 0
+    steps = [s for _, s in found]
+    want = SHARP_STEPS if found[0][0] == "sharp" else FLAT_STEPS
+    if len(steps) > 7 or any(abs((b - a) - (want[i + 1] - want[i])) > 1.2 for i, (a, b) in enumerate(zip(steps, steps[1:]))):
+        return None
+    return len(found) * (1 if found[0][0] == "sharp" else -1)
 
 
 def crop_png(img: Image.Image, box: Tuple[int, int, int, int], spacing: float,
@@ -491,3 +636,32 @@ def whole_page_png(img: Image.Image, max_side: int = 3000) -> bytes:
     buf = io.BytesIO()
     ImageOps.autocontrast(c, cutoff=0.5).save(buf, "PNG", optimize=True)
     return buf.getvalue()
+
+
+if __name__ == "__main__":
+    # synthetic staff (spacing 20 px): clef blob, key signature F# C#, a stemmed note, a barline with a measure
+    # number touching its top (a blurred scan), a final barline
+    page = Image.new("L", (1400, 300), 255)
+    d = ImageDraw.Draw(page)
+    for y in range(100, 181, 20):
+        d.rectangle((20, y - 1, 1390, y), fill=0)
+    d.ellipse((28, 60, 58, 215), fill=0)                                # the clef
+    for x, y in ((80, 100), (110, 130)):                                # sharps on F5 and C5
+        d.rectangle((x, y - 28, x + 2, y + 26), fill=0)
+        d.rectangle((x + 9, y - 30, x + 11, y + 24), fill=0)
+        d.polygon(((x - 4, y - 4), (x + 15, y - 10), (x + 15, y - 5), (x - 4, y + 1)), fill=0)
+        d.polygon(((x - 4, y + 10), (x + 15, y + 4), (x + 15, y + 9), (x - 4, y + 15)), fill=0)
+    head = Image.new("L", (30, 30), 0)
+    ImageDraw.Draw(head).ellipse((1, 5, 28, 24), fill=255)
+    page.paste(0, (298, 125), head.rotate(20))                          # a tilted quarter-note head on B4 ...
+    d.rectangle((324, 70, 326, 138), fill=0)                            # ... with its stem
+    d.rectangle((600, 100, 602, 180), fill=0)                           # barline ...
+    d.rectangle((600, 78, 602, 99), fill=0)                             # ... with a "1" sitting on it
+    d.rectangle((1384, 100, 1390, 180), fill=0)                         # final barline
+    sysm = System((0, 0, 1400, 300), 20.0, 1)
+    spans, reliable = measures(page, sysm)
+    assert reliable and [round(a / 10) for a, _ in spans] == [2, 60], spans
+    assert key_signature(page, sysm) == 2, key_signature(page, sysm)
+    heads = noteheads(page, sysm)
+    assert [(st, dur) for _, st, dur in heads] == [(4, Fraction(1, 4))], heads
+    print("omr self-check ok")

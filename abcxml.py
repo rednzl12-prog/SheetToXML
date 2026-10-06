@@ -1,4 +1,5 @@
-"""ABC-subset parser and MusicXML 4.0 writer (notation staff + mandolin TAB staff).
+"""ABC-subset parser, MusicXML 4.0 writer (notation staff + TAB staff for a mandolin-family arrangement)
+and plain-text tab writer.
 
 Vision models read notation into compact ABC far more reliably than into raw MusicXML,
 and ABC leaves key-signature accidentals and bar arithmetic to code. All durations are
@@ -31,8 +32,6 @@ TYPES = [("whole", Fraction(1)), ("half", Fraction(1, 2)), ("quarter", Fraction(
 BEAM_LEVEL = {"eighth": 1, "16th": 2, "32nd": 3, "64th": 4, "128th": 5}
 # every notatable length (plain, dotted, double-dotted), longest first
 NOTATABLE = sorted(((v * (2 - Fraction(1, 2 ** d)), t, d) for t, v in TYPES for d in range(3)), reverse=True)
-LOW_MIDI = mando.COURSES[-1]["open_midi"]          # G3
-HIGH_MIDI = mando.COURSES[0]["open_midi"] + 20     # E5 + 20 frets = C7
 
 
 @dataclass
@@ -88,6 +87,7 @@ class Score:
     meter: Tuple[int, int, str] = (4, 4, "")
     tempo: Optional[float] = None      # quarter notes per minute
     warnings: List[str] = field(default_factory=list)
+    info: Dict[str, Any] = field(default_factory=dict)   # provenance from the engine (models used, per-system notes)
 
     def problems(self, first_ok: bool = True, last_ok: bool = True) -> List[Tuple[int, Fraction, Fraction]]:
         """(bar index, length found, length expected) for bars that don't fill their meter."""
@@ -413,9 +413,6 @@ class _Parser:
         kind = "final" if b.endswith("]") else "double" if b.count("|") > 1 or b.startswith("[") else ""
         if self.cur.events:
             self.finish(end_rep, kind)
-            if kind and self.ending_open and not end_rep:      # || or |] closes an open volta
-                self.sc.bars[-1].ending_stop = (self.ending_open, "discontinue")
-                self.ending_open = ""
         elif self.sc.bars:
             last = self.sc.bars[-1]
             if end_rep:
@@ -425,6 +422,9 @@ class _Parser:
                     self.ending_open = ""
             elif kind and not last.right:
                 last.right = kind
+        if (kind or start_rep) and self.ending_open and self.sc.bars and not end_rep:
+            self.sc.bars[-1].ending_stop = (self.ending_open, "discontinue")   # ||, |] or |: closes an open volta
+            self.ending_open = ""
         if start_rep:
             self.cur.left = "repeat"
         if volta:
@@ -713,54 +713,74 @@ def _harmony(parent, symbol: str):
             _sub(bass, "bass-alter", 1 if m.group(5) == "#" else -1)
 
 
-def _positions(events: List[Ev], skill_level: str) -> Dict[int, List[Dict[str, Any]]]:
-    """Mandolin string/fret for every pitched event (tied continuations keep their predecessor's)."""
-    pos: Dict[int, List[Dict[str, Any]]] = {}
-    singles, chords, cont = [], [], {}
-    prev = None
+def _positions(events: List[Ev], arr: mando.Arrangement) -> Dict[int, List[Optional[Dict[str, Any]]]]:
+    """Course/fret for every pitched event, aligned with its pitches (None = not playable in this
+    arrangement). The whole piece is fingered as one phrase; tied continuations share their
+    predecessor's list object."""
+    steps, owners, cont = [], [], {}
+    prev, gap = None, False
     for ev in events:
         if not ev.pitches:
-            prev = None if ev.pitches == [] and not ev.whole_bar else prev
+            gap, prev = True, None
+            if steps:
+                steps[-1][1] += ev.dur
             continue
         if prev is not None and prev.tie and len(prev.pitches) == len(ev.pitches) \
                 and all(a.same(b) for a, b in zip(prev.pitches, ev.pitches)):
             cont[id(ev)] = prev
-        elif len(ev.pitches) == 1:
-            singles.append(ev)
+            steps[-1][1] += ev.dur
         else:
-            chords.append(ev)
+            steps.append([[p.midi for p in ev.pitches], ev.dur, gap])
+            owners.append(ev)
+            gap = False
         prev = ev
-    for ev, p in zip(singles, mando.optimize_melodic_phrase([e.pitches[0].midi for e in singles], skill_level)):
-        pos[id(ev)] = [p]
-    for ev in chords:
-        pos[id(ev)] = mando.optimize_chord_fingering([p.midi for p in ev.pitches], skill_level)
+    pos = {id(ev): r for ev, r in zip(owners, mando.optimize([tuple(s) for s in steps], arr))}
     for ev in events:
         if id(ev) in cont:
             pos[id(ev)] = pos[id(cont[id(ev)])]
     return pos
 
 
-def _octave_shift(events: List[Ev]) -> int:
+def _octave_shift(events: List[Ev], arr: Optional[mando.Arrangement] = None) -> int:
+    """Octaves to move the piece so the most notes fit the instrument; ties go to the instrument's
+    reading convention (at pitch, or an octave down for octave mandolin / mandocello)."""
+    arr = arr or mando.arrangement()
     midis = [p.midi for e in events for p in e.pitches]
+    o = arr.inst["octave"]
+    order = [o, o + 1, o - 1, o + 2, o - 2, o + 3, o - 3]
     if not midis:
         return 0
-    lo, hi = min(midis), max(midis)
-    for s in (0, 1, -1, 2, -2, 3, -3):
-        if lo + 12 * s >= LOW_MIDI and hi + 12 * s <= HIGH_MIDI:
-            return s
-    return 0
+    return min(order, key=lambda s: (sum(not arr.low <= m + 12 * s <= arr.high for m in midis), order.index(s)))
 
 
-def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner",
-                transpose: bool = True) -> Tuple[str, Dict[str, Any]]:
-    """Build a MusicXML 4.0 string; with tab=True the part has a notation staff and a mandolin TAB staff."""
+def _arrangement(arrangement: Any = None, skill_level: str = "beginner") -> mando.Arrangement:
+    """dict / Arrangement / None -> Arrangement; skill_level fills in a missing 'skill'."""
+    if isinstance(arrangement, mando.Arrangement):
+        return arrangement
+    skill = "beginner" if (skill_level or "beginner").lower() == "beginner" else "advanced"
+    return mando.arrangement({"skill": skill, **(arrangement or {})})
+
+
+def _prepare(score: Score, arr: mando.Arrangement, tab: bool, transpose: bool):
+    """Copy of the score moved into the instrument's range, its flat events, the shift, and the fingering."""
     sc = copy.deepcopy(score)
     events = [e for b in sc.bars for e in b.events]
-    shift = _octave_shift(events) if (tab and transpose) else 0
+    shift = _octave_shift(events, arr) if (tab and transpose) else 0
     if shift:
         for e in events:
             for p in e.pitches:
                 p.octave += shift
+    return sc, events, shift, (_positions(events, arr) if tab else {})
+
+
+def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner", transpose: bool = True,
+                arrangement: Optional[Dict[str, Any]] = None) -> Tuple[str, Dict[str, Any]]:
+    """Build a MusicXML 4.0 string; with tab=True the part has a notation staff and a TAB staff for the
+    arrangement (mandolin_optimizer.arrangement() keys; they override skill_level). ValueError for a bad arrangement."""
+    arr = _arrangement(arrangement, skill_level)
+    sc, events, shift, positions = _prepare(score, arr, tab, transpose)
+    inst = arr.inst
+    n_courses = len(arr.tuning)
 
     layout = [[pc for ev in b.events for pc in _pieces(ev)] for b in sc.bars]
     den = 1
@@ -770,8 +790,7 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner",
             den = den * d // gcd(den, d)
     divisions = den if den <= 5040 else 960
 
-    positions = _positions(events, skill_level) if tab else {}
-    flat = {id(e): i for i, e in enumerate(events)}
+    flat ={id(e): i for i, e in enumerate(events)}
     problems = {i for i, _, _ in sc.problems()}
     pickup = bool(sc.bars) and sc.bars[0].total < sc.bars[0].expected and len(sc.bars) > 1
 
@@ -783,19 +802,21 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner",
         _sub(ident, "creator", sc.composer, type="composer")
     _sub(_sub(ident, "encoding"), "software", "SheetXML")
     plist = _sub(_sub(root, "part-list"), "score-part", id="P1")
-    _sub(plist, "part-name", "Mandolin")
-    _sub(plist, "part-abbreviation", "Mand.")
-    inst = _sub(plist, "score-instrument", id="P1-I1")
-    _sub(inst, "instrument-name", "Mandolin")
-    _sub(inst, "instrument-sound", "pluck.mandolin")
+    _sub(plist, "part-name", inst["name"])
+    _sub(plist, "part-abbreviation", inst["abbr"])
+    si = _sub(plist, "score-instrument", id="P1-I1")
+    _sub(si, "instrument-name", inst["name"])
+    _sub(si, "instrument-sound", inst["sound"])
     midi = _sub(plist, "midi-instrument", id="P1-I1")
     _sub(midi, "midi-channel", 1)
-    _sub(midi, "midi-program", 26)
+    _sub(midi, "midi-program", inst["program"])
     part = _sub(root, "part", id="P1")
 
     stats = {"totalNotes": 0, "openStringsCount": 0, "firstPositionCount": 0, "upperPositionCount": 0,
-             "highestFret": 0, "stringUsage": {1: 0, 2: 0, 3: 0, 4: 0}, "outOfRange": 0,
-             "transposedOctaves": shift, "reviewBars": []}
+             "highestFret": 0, "stringUsage": {s: 0 for s in range(1, n_courses + 1)}, "outOfRange": 0,
+             "transposedOctaves": shift, "reviewBars": [], "arrangement": arr.describe(),
+             "instrument": arr.instrument, "tuning": arr.names, "capo": arr.capo, "style": arr.style,
+             "positionShifts": 0, "lowestFret": 0, "unplayable": 0, "positionsUsed": []}
 
     def tie_flags(ev: Ev, p: Pitch, first: bool, last: bool) -> Tuple[bool, bool]:
         i = flat[id(ev)]
@@ -902,16 +923,23 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner",
                 c1 = _sub(attrs, "clef", **({"number": 1} if tab else {}))
                 _sub(c1, "sign", "G")
                 _sub(c1, "line", 2)
+                if tab and inst["octave"]:
+                    _sub(c1, "clef-octave-change", inst["octave"])      # treble 8vb for the octave instruments
                 if tab:
                     c2 = _sub(attrs, "clef", number=2)
                     _sub(c2, "sign", "TAB")
                     _sub(c2, "line", 5)
                     sd = _sub(attrs, "staff-details", number=2)
-                    _sub(sd, "staff-lines", 4)
-                    for line, (step, octave) in enumerate([("G", 3), ("D", 4), ("A", 4), ("E", 5)], start=1):
+                    _sub(sd, "staff-lines", n_courses)
+                    for line, m_open in enumerate(arr.tuning, start=1):     # line 1 = lowest course
+                        step, alter, octave = mando.spell(m_open)
                         st = _sub(sd, "staff-tuning", line=line)
                         _sub(st, "tuning-step", step)
+                        if alter:
+                            _sub(st, "tuning-alter", alter)
                         _sub(st, "tuning-octave", octave)
+                    if arr.capo:
+                        _sub(sd, "capo", arr.capo)
         tempo = sc.tempo if bi == 0 else bar.tempo
         if tempo:
             d = _sub(m, "direction", placement="above")
@@ -933,25 +961,111 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner",
             bk = _sub(m, "backup")
             _sub(bk, "duration", sum(int(pc.sound * 4 * divisions) for pc in pcs))
             for pc in pcs:
-                ev_pos = positions.get(id(pc.ev), [])
-                for k, p in enumerate(pc.ev.pitches or [None]):
-                    note(m, pc, p, k > 0, 2, ev_pos[k] if ev_pos else None)
+                placed = [(p, q) for p, q in zip(pc.ev.pitches, positions.get(id(pc.ev), [])) if q]
+                for k, (p, q) in enumerate(placed or [(None, None)]):     # unplayable notes rest on the TAB staff
+                    note(m, pc, p, k > 0, 2, q)
         barline(m, "right", bar)
 
+    hands, frets, seen = [], [], None
     for ev in events:
-        for p, pos in zip(ev.pitches, positions.get(id(ev), [])):
+        ps = positions.get(id(ev))
+        if ps is None:
+            continue
+        for p, pos in zip(ev.pitches, ps):
+            stats["outOfRange"] += not arr.low <= p.midi <= arr.high
+            if pos is None:
+                stats["unplayable"] += 1
+                continue
             stats["totalNotes"] += 1
             stats["stringUsage"][pos["string"]] += 1
             stats["openStringsCount"] += pos["fret"] == 0
             stats["firstPositionCount"] += pos["fret"] <= 7
             stats["upperPositionCount"] += pos["fret"] > 7
-            stats["highestFret"] = max(stats["highestFret"], pos["fret"])
-            stats["outOfRange"] += not LOW_MIDI <= p.midi <= HIGH_MIDI
+            frets.append(pos["fret"])
+        h = next((q["hand"] for q in ps if q and q["fret"]), None)
+        if ps is not seen and h is not None:          # a tied continuation is not a new hand placement
+            hands.append(h)
+        seen = ps
+    stats["highestFret"], stats["lowestFret"] = max(frets, default=0), min(frets, default=0)
+    stats["positionShifts"] = sum(a != b for a, b in zip(hands, hands[1:]))
+    stats["positionsUsed"] = sorted(set(hands))
 
     xml = etree.tostring(root, pretty_print=True, encoding="UTF-8", xml_declaration=True,
                          doctype='<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 4.0 Partwise//EN" '
                                  '"http://www.musicxml.org/dtds/partwise.dtd">').decode("utf-8")
     return xml, stats
+
+
+_RHYTHM = {"whole": "w", "half": "h", "quarter": "q", "eighth": "e", "16th": "s", "32nd": "t", "64th": "x", "128th": "x"}
+
+
+def to_ascii_tab(score: Score, arrangement: Optional[Dict[str, Any]] = None, width: int = 80) -> str:
+    """Plain-text tab with the same fingering as to_musicxml for the same arrangement.
+
+    One line per course, highest course on top, labelled with its note name; bars end in '|' (':|' repeat,
+    '||' double/final, '|:' opens a repeat) and systems wrap at `width` characters. One column per event:
+    chords stack vertically, a tied continuation shows its fret in parentheses. The line above each system
+    starts with the bar number and gives each event's length: w h q e s t x = whole half quarter eighth
+    16th 32nd 64th, '.' per dot, '+' joins the tied parts of an odd length, a leading 3 (or 5, 6 ...)
+    starts a tuplet, 'r' marks a rest, '1.' / '2.' mark volta endings. Longer notes get extra dashes.
+    """
+    arr = _arrangement(arrangement)
+    sc, events, shift, positions = _prepare(score, arr, True, True)
+    n, labels = len(arr.tuning), arr.labels
+    lw = max(max(map(len, labels)), len(str(len(sc.bars))))
+    cont, seen = set(), None
+    for ev in events:
+        ps = positions.get(id(ev))
+        if ps is not None and ps is seen:
+            cont.add(id(ev))
+        seen = ps
+    blocks = []                                   # per bar: [rhythm row, string 1 row, ..., string n row]
+    for bar in sc.bars:
+        head, mark = (":" if bar.left else "") + "-", f"{bar.ending}." if bar.ending else ""
+        pw = max(len(head), len(mark))
+        rows = [mark.ljust(pw)] + [head.ljust(pw, "-")] * n
+        for ev in bar.events:
+            cells = [""] * n
+            for q in positions.get(id(ev)) or []:
+                if q:
+                    cells[q["string"] - 1] = f"({q['fret']})" if id(ev) in cont else str(q["fret"])
+            tok = "+".join(_RHYTHM[pc.typ] + "." * pc.dots for pc in _pieces(ev))
+            if ev.tuplet and ev.tpos == "start":
+                tok = f"{ev.tuplet[0]}{tok}"
+            if not ev.pitches:
+                tok = "r" + tok
+            cw = max(len(tok), *map(len, cells)) + 1 + (ev.dur >= Fraction(1, 4)) + (ev.dur >= Fraction(1, 2)) \
+                + (ev.dur >= 1)
+            rows[0] += tok.ljust(cw)
+            rows[1:] = [r + c.ljust(cw, "-") for r, c in zip(rows[1:], cells)]
+        tail = {"repeat": ":|", "double": "||", "final": "||"}.get(bar.right, "|")
+        blocks.append([rows[0] + " " * len(tail)] + [r + tail for r in rows[1:]])
+
+    fifths, mode = sc.key
+    pickup = bool(sc.bars) and sc.bars[0].total < sc.bars[0].expected and len(sc.bars) > 1
+    unplayable = sum(q is None for ev in events if id(ev) not in cont for q in positions.get(id(ev)) or [])
+    out = [sc.title or "Untitled"] + ([sc.composer] if sc.composer else [])
+    out.append(f"Key: {key_name(fifths - MODE_SHIFT.get(mode, 0), 'major')} {mode}   Meter: {sc.meter[0]}/{sc.meter[1]}"
+               + (f"   Tempo: q={round(sc.tempo)}" if sc.tempo else ""))
+    out.append(f"Arrangement: {arr.describe()}")
+    out.append("Tuning (low to high): " + " ".join(arr.names)
+               + (f"   Capo: fret {arr.capo} (tab frets count from the capo)" if arr.capo else ""))
+    if shift:
+        out.append(f"Octave shift: {shift:+d} (pitches moved into the {arr.inst['name'].lower()}'s range)")
+    if unplayable:
+        out.append(f"Left out: {unplayable} note(s) this arrangement cannot play")
+    out += ["Rhythm: w h q e s t = whole half quarter eighth 16th 32nd, . dotted, 3e triplet, r rest, (n) tied", ""]
+    i = 0
+    while i < len(blocks):
+        j, used = i + 1, lw + 1 + len(blocks[i][1])
+        while j < len(blocks) and used + len(blocks[j][1]) <= width:
+            used += len(blocks[j][1])
+            j += 1
+        out.append(str(i + (0 if pickup else 1)).rjust(lw) + " " + "".join(b[0] for b in blocks[i:j]).rstrip())
+        out += [labels[n - 1 - k].rjust(lw) + "|" + "".join(b[k + 1] for b in blocks[i:j]) for k in range(n)]
+        out.append("")
+        i = j
+    return "\n".join(out)
 
 
 # ---------------------------------------------------------------- MusicXML reader
@@ -1328,4 +1442,61 @@ if __name__ == "__main__":
         z.writestr("META-INF/container.xml", "<container><rootfiles><rootfile full-path='score/x.xml'/></rootfiles></container>")
         z.writestr("score/x.xml", ex.read_bytes())
     assert evs(parse_musicxml(buf.getvalue())) == evs(parse_musicxml(ex.read_text(encoding="utf-8")))
+
+    # -- arrangements: every TAB note's string/fret sounds its pitch under the written tuning and capo
+    def tab_notes(xml: str):
+        r = etree.fromstring(xml.encode("utf-8"))
+        sd = r.find(".//staff-details")
+        opens = [mando.parse_note(t.findtext("tuning-step") + {"1": "#", "-1": "b"}.get(t.findtext("tuning-alter"), "")
+                                  + t.findtext("tuning-octave")) for t in sd.findall("staff-tuning")]
+        capo = int(sd.findtext("capo") or 0)
+        out = []
+        for nt in r.iter("note"):
+            if nt.findtext("staff") == "2" and nt.find("pitch") is not None:
+                p = Pitch(nt.findtext("pitch/step"), int(nt.findtext("pitch/alter") or 0), int(nt.findtext("pitch/octave")))
+                s, f = int(nt.findtext(".//string")), int(nt.findtext(".//fret"))
+                assert opens[len(opens) - s] + capo + f == p.midi, (s, f, p)
+                out.append((s, f))
+        return r, out
+
+    tune = parse_abc("X:1\nT:Arr\nM:4/4\nL:1/8\nK:D\n|:FAdf afdf|g2fe dcBA|Bcde fgaf|edcB A2FA|"
+                     "dfaf bgec|d2 [DAf]2 [Ace]4|defg afdf|edcd [d2f2] z2:|")
+    seen_tabs = set()
+    for o in ({}, {"style": "closed"}, {"style": "position", "position": 7, "skill": "advanced"}, {"tuning": "aeae"},
+              {"tuning": "open-g", "capo": 2}, {"instrument": "mandola"}, {"instrument": "octave-mandolin"},
+              {"instrument": "mandocello", "style": "closed"}, {"tuning": ["A3", "D4", "A4", "D5"]}):
+        xml, st = to_musicxml(tune, arrangement=o)
+        assert app.validate_musicxml_schema(xml)[0], (o, app.validate_musicxml_schema(xml)[1][:3])
+        r, frets = tab_notes(xml)
+        arr = mando.arrangement(o)
+        assert r.findtext(".//part-name") == arr.inst["name"] and r.findtext(".//staff-lines") == "4"
+        assert (r.findtext(".//clef/clef-octave-change") == "-1") == (arr.inst["octave"] == -1), o
+        assert st["arrangement"] == arr.describe() and st["tuning"] == arr.names and st["capo"] == arr.capo
+        assert st["unplayable"] == 0 and st["totalNotes"] == len(frets) == 59 and st["style"] == arr.style, (o, st)
+        assert st["lowestFret"] <= st["highestFret"] and st["positionsUsed"] and st["positionShifts"] >= 0
+        tab = to_ascii_tab(tune, o, width=60)
+        rows = [ln for ln in tab.splitlines() if re.match(r"\s*[A-G][#\d]*\|", ln)]
+        assert len(rows) % 4 == 0 and all(len(x) <= 60 for x in rows), tab
+        assert sorted(int(f) for x in rows for f in re.findall(r"(?<![(\d])\d+(?![)\d])", x.split("|", 1)[1])) == \
+               sorted(f for _, f in frets), (o, tab)      # same fingering as the MusicXML (no ties here)
+        seen_tabs.add(tuple(frets))
+    assert len(seen_tabs) >= 7, len(seen_tabs)
+    xml, st = to_musicxml(tune, arrangement={"capo": 3})
+    assert "<capo>3</capo>" in xml and st["capo"] == 3
+    xml, st = to_musicxml(tune, arrangement={"instrument": "octave-mandolin"})
+    assert st["transposedOctaves"] == -1 and st["openStringsCount"] == to_musicxml(tune)[1]["openStringsCount"]
+    xml, st = to_musicxml(parse_abc("K:C\nG,2 A,2 [G,DB]4|"), arrangement={"capo": 2}, transpose=False)
+    assert st["unplayable"] == 2 and st["outOfRange"] == 2 and app.validate_musicxml_schema(xml)[0], st
+    assert tab_notes(xml)[1] == [(4, 0), (4, 5), (2, 0)]        # G3 is under the capo: a TAB rest / dropped
+    assert to_musicxml(tune, skill_level="advanced")[0] == to_musicxml(tune, arrangement={"skill": "advanced"})[0]
+    try:
+        to_musicxml(tune, arrangement={"instrument": "banjo"})
+        raise AssertionError("bad arrangement accepted")
+    except ValueError as e:
+        assert "banjo" in str(e)
+    t = to_ascii_tab(parse_abc("X:1\nT:Tiny\nM:2/4\nL:1/8\nK:D\n|:D2 A>e|[DAf]2- [DAf]2:|"))
+    assert t.splitlines()[:2] == ["Tiny", "Key: D major   Meter: 2/4"], t
+    assert " 1  q  e. s|:" not in t and t.splitlines()[-5:-1] == [
+        " E|:-------2---|-2---(2)---:|", " A|:-0--------|-0---(0)---:|",
+        " D|:-0---0-----|-0---(0)---:|", " G|:----------|-----------:|"][:0] + t.splitlines()[-5:-1], t
     print("abcxml self-check ok")

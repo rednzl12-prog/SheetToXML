@@ -10,6 +10,7 @@ import base64
 import json
 import random
 import re
+import threading
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -28,7 +29,9 @@ DEEPSEEK = ["https://api.deepseek.com"]
 
 Part = object  # str | bytes
 IMAGE_RESOLUTION = "MEDIA_RESOLUTION_ULTRA_HIGH"
+DAILY = float("inf")         # retry_after of a 429 that means "quota used up for today"
 _base_cache: Dict[Tuple[str, str], str] = {}
+_exhausted: Dict[Tuple[str, str], float] = {}     # (key tail, model) -> time until which it is skipped
 
 
 class LLMError(Exception):
@@ -64,6 +67,11 @@ def base_candidates(provider: str, key: str, override: str = "") -> List[str]:
     return [override] + [b for b in bases if b != override] if override else list(bases)
 
 
+def _daily(text: str) -> bool:
+    """A 429 for a used-up daily quota (Gemini free tier: quotaId ...PerDay..., or no per-minute metric named)."""
+    return "PerDay" in text or "per day" in text.lower() or ("Quota exceeded for metric" in text and "PerMinute" not in text)
+
+
 def _error_from_http(status: int, body: str, retry_after: str = "") -> LLMError:
     try:
         j = json.loads(body)
@@ -81,7 +89,7 @@ def _error_from_http(status: int, body: str, retry_after: str = "") -> LLMError:
     if status == 404:
         return LLMError(f"HTTP 404: {msg}", "model", status)
     if status == 429:
-        return LLMError(f"HTTP 429 rate limit: {msg}", "rate", status, wait)
+        return LLMError(f"HTTP 429 rate limit: {msg}", "rate", status, DAILY if wait > 60 or _daily(body) else wait)
     if status >= 500 or status in (408, 409):
         return LLMError(f"HTTP {status}: {msg}", "overload", status, wait)
     return LLMError(f"HTTP {status}: {msg}", "bad_request", status)
@@ -132,7 +140,8 @@ def _map_gemini(e: Exception) -> LLMError:
             return LLMError(f"Model not available to this key: {msg}", "model", code)
         if code == 429:
             m = re.search(r"retry(?:Delay'?:\s*'| in )([\d.]+)s", str(e))       # server-suggested wait
-            return LLMError(f"Gemini rate limit: {msg}", "rate", code, min(60.0, float(m.group(1))) if m else 0)
+            wait = float(m.group(1)) if m else 0
+            return LLMError(f"Gemini rate limit: {msg}", "rate", code, DAILY if wait > 60 or _daily(str(e)) else wait)
         if code >= 500:
             return LLMError(f"Gemini overloaded (HTTP {code}): {msg}", "overload", code)
         return LLMError(f"Gemini HTTP {code}: {msg}", "bad_request", code)
@@ -252,6 +261,30 @@ def generate(provider: str, model: str, key: str, system: str, parts: List[Part]
     return _openai(base, model, key, system, parts, max_tokens, extra, timeout, cancel, on_chunk)
 
 
+def _cancellable(fn: Callable[[], str], cancel: Optional[Callable[[], bool]]) -> str:
+    """Run a blocking request on a helper thread and give up on it within ~0.5 s of a cancel, even while it
+    waits for its first token (the abandoned stream stops at its next chunk or read timeout)."""
+    if not cancel:
+        return fn()
+    box: dict = {}
+
+    def run():
+        try:
+            box["text"] = fn()
+        except BaseException as e:          # handed to the caller below
+            box["error"] = e
+
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    while t.is_alive():
+        t.join(0.5)
+        if cancel():
+            raise LLMError("Cancelled", "cancelled")
+    if "error" in box:
+        raise box["error"]
+    return box["text"]
+
+
 def sleep_unless_cancelled(seconds: float, cancel: Optional[Callable[[], bool]]):
     end = time.time() + seconds
     while time.time() < end:
@@ -262,22 +295,68 @@ def sleep_unless_cancelled(seconds: float, cancel: Optional[Callable[[], bool]])
 
 def generate_with_fallback(provider: str, models: List[str], key: str, system: str, parts: List[Part],
                            notify: Optional[Callable[[str], None]] = None, **kw) -> Tuple[str, str]:
-    """Try each model in turn; retry transient failures with backoff. Returns (text, model used)."""
+    """Try each model in turn; retry transient failures with backoff. Returns (text, model used).
+
+    A model whose daily quota is used up is skipped at once (and for the next hour, by every caller)."""
     last: Optional[LLMError] = None
+    daily = []
     for model in models:
+        if _exhausted.get((key[-8:], model), 0) > time.time():
+            daily.append(model)
+            if notify:
+                notify(f"{model} unavailable (daily quota used up); trying next model")
+            continue
         for attempt in range(3):
             try:
-                return generate(provider, model, key, system, parts, **kw), model
+                return _cancellable(lambda: generate(provider, model, key, system, parts, **kw), kw.get("cancel")), model
             except LLMError as e:
                 last = e
                 if e.kind in ("auth", "bad_request", "cancelled", "truncated"):
                     raise
+                if e.kind == "rate" and e.retry_after > 60:
+                    _exhausted[(key[-8:], model)] = time.time() + 3600
+                    daily.append(model)
+                    break
                 if e.kind == "model":
                     break
                 wait = e.retry_after or min(20, 3 * 2 ** attempt) + random.random()
                 if notify:
                     notify(f"{model}: {e.kind} - retrying in {wait:.0f}s")
                 sleep_unless_cancelled(wait, kw.get("cancel"))
-        if notify and last:
-            notify(f"{model} unavailable ({last.kind}); trying next model")
+        if notify and last and model is not models[-1]:
+            notify(f"{model} unavailable ({'daily quota used up' if model in daily else last.kind}); trying next model")
+    if daily and len(daily) == len(models):
+        raise LLMError("Gemini's free daily quota is used up for these models — try again tomorrow or choose a "
+                       "Qwen/DeepSeek model" if provider == "gemini" else
+                       "The daily quota of these models is used up — try again later or choose another model.", "rate")
     raise last or LLMError("No model could be called.", "other")
+
+
+if __name__ == "__main__":
+    # no-API checks: quota classification, daily-quota fallback, cancel while a request hangs
+    assert _error_from_http(429, '{"error": {"message": "Quota exceeded for metric: x, quotaId: '
+                            'GenerateRequestsPerDayPerProjectPerModel-FreeTier"}}').retry_after == DAILY
+    assert _error_from_http(429, '{"error": {"message": "Quota exceeded for metric: GenerateRequestsPerMinute"}}',
+                            "20").retry_after == 20
+    calls = []
+
+    def fake(provider, model, key, system, parts, **kw):
+        calls.append(model)
+        if model == "slow":
+            time.sleep(30)
+        raise LLMError("quota", "rate", 429, DAILY)
+    generate = fake                                                   # noqa: F811 (patch the module global)
+    try:
+        generate_with_fallback("gemini", ["a", "b"], "AIzaTESTKEY1", "", ["x"])
+    except LLMError as e:
+        assert e.kind == "rate" and "daily quota" in str(e) and calls == ["a", "b"], (e, calls)
+    try:                                                              # both now skipped without a call
+        generate_with_fallback("gemini", ["a", "b"], "AIzaTESTKEY1", "", ["x"])
+    except LLMError as e:
+        assert calls == ["a", "b"] and e.kind == "rate"
+    t0, stop_at = time.time(), time.time() + 1
+    try:
+        generate_with_fallback("qwen", ["slow"], "sk-TESTKEY2", "", ["x"], cancel=lambda: time.time() > stop_at)
+    except LLMError as e:
+        assert e.kind == "cancelled" and time.time() - t0 < 2.5, (e.kind, time.time() - t0)
+    print("llm self-check ok")
