@@ -1176,3 +1176,65 @@ body {
     width: 100%;
   }
 }
+
+/* ==============================================================================
+   Engines, live job progress, review notices, ABC editor
+   ============================================================================== */
+.controls-bar { align-items: flex-start; }
+.control-actions { align-self: flex-end; }
+.form-select option:disabled { color: var(--text-dim); }
+
+.progress-heading { flex: 1; min-width: 0; }
+.progress-heading p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.progress-log {
+  list-style: none;
+  max-height: 9.5rem;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.progress-log li:last-child { color: var(--accent-cyan); }
+
+.notice-box {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1.1rem;
+  color: #fcd34d;
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.notice-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  color: var(--text-muted);
+}
+
+.abc-hint { margin-bottom: 0.6rem; }
+.abc-editor {
+  width: 100%;
+  min-height: 360px;
+  resize: vertical;
+  background: #090d16;
+  color: var(--text-main);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.55;
+  white-space: pre;
+  overflow: auto;
+}
+.abc-editor:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2); }
+.abc-actions { display: flex; justify-content: flex-end; margin-top: 0.75rem; }

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SheetXML | AI Sheet Music to MusicXML Transcriber</title>
-  <meta name="description" content="Optical Music Recognition transcribing sheet music PDFs and images to MusicXML 4.0 using multiple AI providers.">
+  <title>SheetXML | Sheet Music to MusicXML + Mandolin TAB</title>
+  <meta name="description" content="Converts sheet music PDFs, images, MusicXML and ABC into MusicXML 4.0 with a mandolin TAB staff.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -27,7 +27,7 @@
         </div>
         <div class="brand-text">
           <h1>Sheet<span class="gradient-text">XML</span></h1>
-          <p class="tagline">Multi-provider Optical Music Recognition & MusicXML 4.0 Engine</p>
+          <p class="tagline">Sheet music to MusicXML 4.0 with mandolin TAB</p>
         </div>
       </div>
 
@@ -50,7 +50,7 @@
       <!-- Upload Card -->
       <section class="card upload-card" id="uploadSection">
         <div class="dropzone" id="dropzone">
-          <input type="file" id="fileInput" accept=".pdf,image/*" hidden>
+          <input type="file" id="fileInput" accept=".pdf,image/*,.musicxml,.xml,.mxl,.abc" hidden>
           <div class="dropzone-content" id="dropzoneIdle">
             <div class="upload-icon-bubble">
               <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -60,11 +60,11 @@
               </svg>
             </div>
             <h3>Drag & Drop Sheet Music</h3>
-            <p class="dropzone-subtitle">Drop a PDF score or sheet music image (PNG, JPG, WEBP, TIFF)</p>
+            <p class="dropzone-subtitle">Drop a PDF, a photo or scan (PNG, JPG, TIFF), or a MusicXML / ABC file to add mandolin TAB</p>
             <div class="dropzone-actions">
               <button type="button" class="btn btn-outline" id="browseBtn">Browse Files</button>
               <span class="or-divider">or</span>
-              <span class="file-limits">PDFs & Images up to 50MB</span>
+              <span class="file-limits">Files up to 50 MB</span>
             </div>
           </div>
 
@@ -91,15 +91,28 @@
 
         <!-- Conversion Options Bar -->
         <div class="controls-bar">
-          <div class="control-group">
+          <div class="control-group" id="engineGroup">
+            <label for="engineSelect">Engine</label>
+            <select id="engineSelect" class="form-select">
+              <option value="auto" selected>Auto (recommended)</option>
+              <option value="vector">Exact PDF reader (no AI)</option>
+              <option value="ai">AI vision model</option>
+              <option value="audiveris">Audiveris offline</option>
+            </select>
+            <p class="field-hint" id="engineHint"></p>
+          </div>
+
+          <div class="control-group" id="modelGroup">
             <label for="modelSelect">AI Model</label>
-            <select id="modelSelect" class="form-select">
-              <option value="gemini-3.8-flash" selected>Gemini 3.8 Flash (Recommended)</option>
-              <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
-              <option value="gemini-3.6-flash">Gemini 3.6 Flash (High Performance)</option>
-              <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (Ultra Fast)</option>
-              <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
-              <option value="gemini-flash-latest">Gemini Flash Latest</option>
+            <select id="modelSelect" class="form-select"></select>
+            <p class="field-hint" id="modelHint"></p>
+          </div>
+
+          <div class="control-group" id="votesGroup">
+            <label for="votesSelect">Accuracy</label>
+            <select id="votesSelect" class="form-select">
+              <option value="1" selected>Standard (1 reading)</option>
+              <option value="3">Careful (3 readings, ~3x API cost)</option>
             </select>
           </div>
 
@@ -142,19 +155,16 @@
       <section class="card progress-card hidden" id="progressSection">
         <div class="progress-header">
           <div class="spinner-ring"></div>
-          <div>
-            <h3 id="progressTitle">Transcribing Musical Notation...</h3>
-            <p id="progressSubtitle" class="text-muted">The selected AI model is reading staves, clefs, notes, and dynamics...</p>
+          <div class="progress-heading">
+            <h3 id="progressTitle">Transcribing...</h3>
+            <p id="progressSubtitle" class="text-muted">Starting</p>
           </div>
+          <button type="button" class="btn btn-outline btn-sm" id="cancelBtn">Cancel</button>
         </div>
         <div class="progress-bar-container">
           <div class="progress-bar-fill" id="progressBar"></div>
         </div>
-        <div class="progress-steps">
-          <span class="step active" id="step1">1. Ingesting Visual Notation</span>
-          <span class="step" id="step2">2. Pitch & Rhythm Parsing</span>
-          <span class="step" id="step3">3. MusicXML 4.0 Schema Check</span>
-        </div>
+        <ul class="progress-log" id="progressLog"></ul>
       </section>
 
       <!-- Result Showcase -->
@@ -168,7 +178,7 @@
               <span class="badge badge-meta" id="scoreKeyBadge">D major</span>
               <span class="badge badge-meta" id="scoreTimeBadge">4/4</span>
               <span class="badge badge-meta" id="scoreMeasuresBadge">21 Measures</span>
-              <span class="badge badge-meta" id="modelUsedBadge">Model: —</span>
+              <span class="badge badge-meta" id="engineBadge">Engine: —</span>
               <span class="badge badge-success" id="schemaBadge">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 MusicXML 4.0 Validated
@@ -192,6 +202,12 @@
           </div>
         </div>
 
+        <!-- Review notices: bars to check and engine warnings -->
+        <div class="notice-box hidden" id="resultNotices">
+          <strong id="reviewBarsText"></strong>
+          <ul class="notice-list" id="warningsList"></ul>
+        </div>
+
         <!-- Tab Navigation -->
         <div class="tabs-nav">
           <button class="tab-btn active" data-tab="scoreTab">
@@ -201,6 +217,10 @@
           <button class="tab-btn" data-tab="xmlTab">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
             MusicXML Source Code
+          </button>
+          <button class="tab-btn" data-tab="abcTab">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+            ABC (edit)
           </button>
           <button class="tab-btn" data-tab="validationTab">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -259,7 +279,16 @@
           <pre class="xml-code-block"><code id="xmlCodeContent"></code></pre>
         </div>
 
-        <!-- Tab 3: Validation & Metadata Details -->
+        <!-- Tab 3: Editable ABC -->
+        <div class="tab-content" id="abcTab">
+          <p class="field-hint abc-hint">The score as ABC (L:1/8, so a plain letter is an eighth note). Fix a misread note or bar here, then apply to re-render the notation and TAB.</p>
+          <textarea id="abcEditor" class="abc-editor" spellcheck="false"></textarea>
+          <div class="abc-actions">
+            <button type="button" class="btn btn-primary btn-sm" id="applyAbcBtn">Apply edits</button>
+          </div>
+        </div>
+
+        <!-- Tab 4: Validation & Metadata Details -->
         <div class="tab-content" id="validationTab">
           <div class="metadata-grid">
             <div class="meta-card">
@@ -355,28 +384,42 @@
           <div class="pro-info-banner">
             <div class="banner-icon">💡</div>
             <div>
-              <strong>Provider API key:</strong>
-              <p>Choose a model above, then enter the matching Gemini or QwenCloud API key. Keys are saved locally in this folder.</p>
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="banner-link">
-                Open API key manager →
-              </a>
+              <strong>Multi-Provider API Keys:</strong>
+              <p>Only needed for the AI engine. PDFs exported from notation software are read exactly without any key. DeepSeek runs through the Qwen Token Plan key.</p>
             </div>
           </div>
 
+          <!-- Google Gemini Key -->
           <div class="form-field">
-            <label for="apiKeyInput">Provider API Key</label>
-            <div class="input-with-button">
-              <input type="password" id="apiKeyInput" class="form-input" placeholder="AIzaSy...">
-              <button type="button" class="btn btn-outline btn-sm" id="toggleKeyVisibility">Show</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.35rem;">
+              <label for="geminiKeyInput" style="margin-bottom:0;">Google Gemini API Key</label>
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="banner-link" style="font-size:0.75rem;">Get Gemini Key →</a>
             </div>
-            <p class="field-hint">Key is saved securely to your local <code>.env</code> file in this folder.</p>
+            <div class="input-with-button">
+              <input type="password" id="geminiKeyInput" class="form-input" placeholder="AIzaSy... or AQ....">
+              <button type="button" class="btn btn-outline btn-sm" id="toggleGeminiKeyVisibility">Show</button>
+            </div>
+            <p class="field-hint">Used for Gemini models (3.8 Flash, 3.1 Pro). The free tier has a small daily quota.</p>
+          </div>
+
+          <!-- Qwen Key -->
+          <div class="form-field" style="margin-top: 1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 0.35rem;">
+              <label for="qwenKeyInput" style="margin-bottom:0;">Qwen / Token Plan / DashScope Key</label>
+              <span style="font-size:0.72rem; color:#818cf8; background:rgba(99,102,241,0.12); padding:2px 8px; border-radius:4px; border:1px solid rgba(99,102,241,0.25);">Accepts sk-sp- Token Plan</span>
+            </div>
+            <div class="input-with-button">
+              <input type="password" id="qwenKeyInput" class="form-input" placeholder="sk-sp-... or sk-...">
+              <button type="button" class="btn btn-outline btn-sm" id="toggleQwenKeyVisibility">Show</button>
+            </div>
+            <p class="field-hint">Used for Qwen models and DeepSeek V4.1 Flash (Token Plan keys start with sk-sp-).</p>
           </div>
 
           <div id="verifyStatusBox" class="verify-status hidden"></div>
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="testKeyBtn">Test Connection</button>
+          <button type="button" class="btn btn-secondary" id="testKeyBtn">Test Connections</button>
           <button type="button" class="btn btn-primary" id="saveKeyBtn">Save & Apply</button>
         </div>
       </div>

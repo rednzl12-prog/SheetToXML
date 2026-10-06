@@ -1,124 +1,82 @@
-# 🎼 SheetXML — AI Sheet Music to MusicXML Transcriber
+# SheetXML
 
-An Optical Music Recognition (OMR) system powered by Gemini multimodal AI. It transcribes PDF scores and images of sheet music into validated **MusicXML 4.0** format.
+Turns sheet music (PDF, scan or photo) into **MusicXML 4.0** with a notation staff plus a playable
+**mandolin TAB** staff (G3 D4 A4 E5, first position and open strings preferred, see
+`resources/MANDOLIN_TAB_FINGERING_SPEC.md`). It can also add TAB to an existing `.musicxml`/`.mxl`/`.abc` file.
+Runs locally: a small web app at `http://localhost:5050` plus a command line.
 
----
+## How it works
 
-## ✨ Features
+Every engine produces the same internal score; SheetXML then writes the MusicXML (with TAB), checks it
+against the official MusicXML 4.0 schema, and flags measures whose length does not add up ("check").
 
-- **Playable Mandolin Tablature & Ergonomics**: Built-in Viterbi Dynamic Programming optimizer strictly adhering to `MANDOLIN_TAB_FINGERING_SPEC.md`. Transcribes to 4-line Mandolin TAB (G3 D4 A4 E5), prioritizing first position (frets 0–7), idiomatic open strings, compact hand windows, and chord reachability.
-- **Multi-provider OMR**: Uses Gemini or Qwen for PDF/image transcription, and DeepSeek Flash for image transcription.
-- **W3C MusicXML 4.0 Compliance**: Validates against the official MusicXML 4.0 XSD schema included in `musicxml-4.0/schema/`.
-- **Interactive Visual Score Preview**: Powered by [OpenSheetMusicDisplay](https://github.com/opensheetmusicdisplay/opensheetmusicdisplay) (`osmd.min.js`, 100% offline-capable).
-- **Real-Time Audio Synthesizer**: Built-in Web Audio engine to listen to the transcribed score with tempo slider (BPM) and switchable instruments (Grand Piano, Ambient Bells, Wood Marimba).
-- **Multiple Run Modes**:
-  1. **Desktop Shortcut** (`SheetXML.lnk` on Desktop)
-  2. **Interactive Web GUI** (`run.bat`, `SheetXML.exe`, or `python app.py`)
-  3. **Explorer Drag-and-Drop** (`transcribe.bat`)
-  4. **Command Line (CLI)** (`python app.py input.pdf -o output.musicxml`)
-- **Universal DAW & Notation Compatibility**: Output `.musicxml` files open directly in **MuseScore**, **Sibelius**, **Finale**, **Dorico**, **Guitar Pro**, and any modern DAW.
+| Engine | Use it for | Cost | Accuracy |
+|---|---|---|---|
+| **Exact PDF reader** (no AI) | PDFs exported from MuseScore, Sibelius, Finale, Dorico | free, offline, ~0.1 s | exact: Pachelbel's Canon, 57/57 bars, 100% of notes |
+| **AI vision model** | scans, photos, PDFs of scans | API credits | code finds the staves, bars and noteheads; the model reads one staff system at a time and every answer is checked and repaired. Qwen 3.8 Flash: 98% of notes on the hardest test page |
+| **Audiveris** (optional) | scans and photos without any AI | free, offline, ~10-15 s/page | classic OMR |
+| **Auto** (default) | everything | | exact reader for born-digital PDFs, otherwise Audiveris if installed, otherwise AI if a key is set (AI also steps in when Audiveris fails or leaves more than 1 in 8 measures inconsistent) |
 
----
+Systems the AI could not read are listed as warnings (never silently dropped). Fix any misread note in the
+**ABC (edit)** tab and press **Apply edits** to re-render.
 
-## 🔑 Connecting an AI Provider
+## Install
 
-Create an API key for the provider and enter it in the Settings dialog after selecting its model.
+Python 3.11+ on Windows, then:
 
-To connect SheetXML to your Gemini subscription:
-
-1. Go to **[Google AI Studio](https://aistudio.google.com/app/apikey)**.
-2. Sign in with the Google Account that holds your Pro subscription.
-3. Click **"Create API Key"** and copy your key.
-4. Set your key using any of these methods:
-   - **In the Web UI**: Select a model, click **AI Connection Settings**, paste the matching provider key, and click **Save & Apply**.
-   - **In a `.env` file**: Create or edit `.env` in this directory:
-     ```env
-     GEMINI_API_KEY="AIzaSy..."
-     QWEN_API_KEY="..."
-     DEEPSEEK_API_KEY="..."
-     ```
-   - **Via Windows Environment Variable**:
-     ```powershell
-     [System.Environment]::SetEnvironmentVariable('GEMINI_API_KEY', 'your-key-here', 'User')
-     ```
-   - **Via CLI flag**:
-     ```bash
-     python app.py sheet.pdf --key "AIzaSy..."
-     ```
-
----
-
-## 🚀 Quickstart
-
-### 1. Desktop Shortcut (Fastest)
-Double-click the **SheetXML** shortcut on your **Desktop** (`SheetXML.lnk`) or double-click **`SheetXML.exe`** in this folder.
-- Launches silently without an intrusive console window.
-- Automatically opens your default web browser to `http://localhost:5050`.
-
-### 2. Interactive Web GUI
-Double-click `run.bat` or run in terminal:
 ```bash
-python app.py
+pip install -r requirements.txt
 ```
-This automatically launches the server on `http://localhost:5050` and opens your browser.
 
-- **Drag and drop** any PDF or sheet music image (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.tiff`).
-- Choose a provider model. Gemini and Qwen support PDFs; DeepSeek Flash supports images.
-- Click **"Transcribe to MusicXML"**.
-- View the rendered sheet music, play it with the synth, or click **"Download .musicxml"**.
-- Click **"Try Sample Score"** anytime to preview the built-in example score (`music-xml-example.xml`).
+Start it with `SheetXML.exe`, `run.bat`, or `python app.py`. Drop a file onto `transcribe.bat` to convert it directly.
 
-### 2. Explorer Drag-and-Drop
-Drag any sheet music PDF or image file and drop it directly onto **`transcribe.bat`** in Windows Explorer. It will transcribe the score and output the `.musicxml` file right alongside your original file!
+### No-AI options
+- **Born-digital PDFs** need nothing else: the exact reader handles them.
+- **Scans/photos without AI**: install [Audiveris 5.11](https://github.com/Audiveris/audiveris/releases)
+  (free, the Windows installer bundles Java, installs to `C:\Program Files\Audiveris`). SheetXML finds it
+  automatically, or set `AUDIVERIS` to its folder or `Audiveris.exe`.
+  Measured here: 8-16 s per page; 15-16 of 17 bars exact on simple tunes (clean or scanned), but only
+  13 of 30 on a dense 16th/32nd scan - that is where the AI engine earns its keep.
 
-### 3. Command Line Interface (CLI)
+### AI models and keys
+Enter keys in **AI Settings** in the web app (stored in `.env` next to `app.py`, never uploaded anywhere
+except to the provider), or set `GEMINI_API_KEY` / `QWEN_API_KEY` as environment variables.
+
+| Model | Key | Notes |
+|---|---|---|
+| Gemini 3.8 Flash (default with a Gemini key) | Gemini, from [Google AI Studio](https://aistudio.google.com/app/apikey) | often busy ("high demand"): falls back to 3.7 / 3.5 Flash. Free tier = small daily quota |
+| Gemini 3.1 Pro Preview, Gemini Pro Latest | Gemini | strongest, quota-limited on the free tier |
+| Qwen 3.8 Flash (default without a Gemini key) | Qwen Token Plan (`sk-sp-...`) | fast, good results |
+| Qwen 3.7 Plus, Qwen 3.6 Flash | Qwen | |
+| Qwen 3.8 Max | Qwen | very slow (~2.5 min per staff system) |
+| DeepSeek V4.1 Flash | Qwen Token Plan | DeepSeek served through the Qwen key |
+
+**Accuracy: Careful** reads every system three times and takes the majority per bar (about 3x the API cost).
+"Test" in Settings checks a key without spending tokens.
+
+A Claude Pro/Max subscription does not include API access; the Claude API is billed separately through the
+Claude Console, and SheetXML does not use it.
+
+## Command line
+
 ```bash
-# Basic transcription
-python app.py myscore.pdf
-
-# Specify output filename and model
-python app.py myscore.png -o myscore.musicxml --model gemini-3.8-flash
-
-# Transcribe specific pages of a multi-page PDF (e.g. pages 1 to 2)
-python app.py full_book.pdf -p "1-2" -o excerpt.musicxml
+python app.py score.pdf                          # auto engine, writes score.musicxml
+python app.py scan.jpg -o out.musicxml --engine ai --model qwen3.8-flash --votes 3
+python app.py score.pdf -p 1-2 --no-tab          # pages 1-2, notation only
+python app.py old.musicxml --skill advanced      # add TAB to an existing file -> old-tab.musicxml
+python app.py --help
 ```
 
----
+Options: `--engine auto|vector|ai|audiveris`, `--model ID`, `--votes 1|3`, `-p PAGES`, `--no-tab`,
+`--skill beginner|advanced`, `-k KEY`, `-o OUT`. With no file, `python app.py [--port N] [--no-browser]` starts the web app.
+The CLI prints progress, warnings and the measures to check.
 
-## 📁 Project Structure
+## Files
 
-```
-sheettoxml/
-├── SheetXML.exe               # 1-click standalone desktop executable (with custom icon)
-├── run.bat                    # 1-click Windows batch runner for Web GUI
-├── transcribe.bat             # Drag-and-drop batch runner for Windows Explorer
-├── app.py                     # Main application (Engine, CLI, Schema Validator, Web Server)
-├── mandolin_optimizer.py      # Spec-compliant Mandolin Tab Viterbi optimizer
-├── requirements.txt           # Python dependencies
-├── .env                       # Local provider keys (not committed)
-├── README.md                  # Complete documentation
-├── static/                    # Frontend Web UI (HTML5, CSS3, JS)
-│   ├── index.html             # Dark glassmorphic layout with Mandolin Tab controls
-│   ├── style.css              # Custom styling system with micro-interactions
-│   ├── app.js                 # UI logic, OSMD rendering & Web Audio synthesizer
-│   └── osmd.min.js            # Bundled OpenSheetMusicDisplay library (offline)
-├── schemas/                   # Official W3C MusicXML 4.0 XSD schemas & catalog
-├── resources/                 # Reference docs, specs, and source assets
-│   ├── MANDOLIN_TAB_FINGERING_SPEC.md   # Official Mandolin Tab specification
-│   ├── HowToReadSheetMusic.pdf          # Notation reference guide
-│   ├── music-xml-example.xml            # Reference score (Maid Behind the Bar)
-│   ├── launcher.cs                      # C# source for SheetXML.exe
-│   └── icon.ico                         # High-res musical note icon
-└── transcriptions/            # Output folder for transcribed MusicXML scores
-```
+`app.py` web server + CLI · `vectorpdf.py` exact PDF reader · `pipeline.py`, `omr.py`, `llm.py` AI pipeline ·
+`audiveris.py` Audiveris bridge · `abcxml.py` score model, ABC and MusicXML reader/writer · `mandolin_optimizer.py`
+TAB fingering · `schemas/` MusicXML 4.0 XSD · `static/` web UI (OpenSheetMusicDisplay, offline).
 
----
+The server only listens on 127.0.0.1 and only answers its own page (no cross-site access). Saved files go to `transcriptions/`.
 
-## 🛠️ Requirements & Dependencies
-
-- **Python**: 3.10, 3.11, 3.12, 3.13, or 3.14
-- **Libraries**:
-  - `google-genai`: Official Google GenAI SDK
-  - `lxml`: High-performance XML parser & XSD validator
-  - `pypdf`: Multi-page PDF document inspection
-  - `pillow`: Image processing & thumbnailing
+License: MIT.

@@ -5,8 +5,8 @@ if "%~1"=="" (
     echo ==============================================================
     echo  SheetXML Drag-and-Drop Transcriber
     echo ==============================================================
-    echo Drag and drop any PDF or sheet music image onto this batch file
-    echo to transcribe it immediately into a .musicxml file!
+    echo Drag and drop a PDF, image, MusicXML or ABC file onto this batch file
+    echo to convert it into a .musicxml file with mandolin TAB.
     echo.
     echo Or press any key to launch the interactive Web GUI...
     pause >nul
@@ -14,7 +14,7 @@ if "%~1"=="" (
     goto end
 )
 
-echo Transcribing: %~nx1
+echo Converting: %~nx1
 python -B app.py "%~1"
 echo.
 pause

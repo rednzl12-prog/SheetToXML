@@ -1,8 +1,8 @@
 @echo off
-title SheetXML - Gemini Sheet Music to MusicXML Transcriber
+title SheetXML - Sheet Music to MusicXML + Mandolin TAB
 cd /d "%~dp0"
 echo ==============================================================
-echo  SheetXML - Gemini 2.5 AI Sheet Music to MusicXML Transcriber
+echo  SheetXML - Sheet Music to MusicXML + Mandolin TAB
 echo ==============================================================
 echo Starting local web server and opening browser...
 python -B app.py
