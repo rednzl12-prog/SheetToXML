@@ -3,321 +3,340 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SheetXML | Sheet Music to MusicXML + Mandolin TAB</title>
-  <meta name="description" content="Converts sheet music PDFs, images, MusicXML and ABC into MusicXML 4.0 with a mandolin-family TAB staff.">
+  <title>SheetXML | Sheet music to MusicXML and mandolin tab</title>
+  <meta name="description" content="Converts sheet music PDFs, images, MusicXML and ABC into MusicXML 4.0 with a mandolin-family tab staff.">
+  <meta name="color-scheme" content="light">
   <link rel="icon" href="favicon.ico">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="preload" href="fonts/BigShouldersDisplay-wght.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="stylesheet" href="style.css">
   <!-- Local OpenSheetMusicDisplay (offline-capable) -->
   <script src="osmd.min.js"></script>
 </head>
 <body>
   <a class="skip-link" href="#uploadSection">Skip to the converter</a>
-  <div class="app-container">
-    <header class="app-header">
+
+  <header class="masthead">
+    <div class="masthead-inner">
       <div class="brand">
-        <div class="brand-logo" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="clef-icon">
-            <path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>
-          </svg>
-        </div>
-        <div class="brand-text">
-          <h1>Sheet<span class="gradient-text">XML</span></h1>
-          <p class="tagline">Sheet music to MusicXML with mandolin tab</p>
+        <svg class="brand-mark" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        <div>
+          <h1 class="wordmark">Sheet<span>XML</span></h1>
+          <p class="tagline">Sheet music in, mandolin tab and MusicXML out</p>
         </div>
       </div>
-      <div class="header-actions">
-        <button type="button" id="loadSampleBtn" class="btn btn-secondary">Try a sample score</button>
-        <button type="button" id="settingsBtn" class="btn btn-glass" aria-haspopup="dialog">
-          <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 4.6 19.4l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 .6 13.4H.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 1.77 6.6l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 7.42 2.6V2.5a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 2.82 1.17l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 18.4 9.4h.1a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <div class="masthead-actions">
+        <button type="button" id="loadSampleBtn" class="btn btn-lacquer">Try a sample score</button>
+        <button type="button" id="settingsBtn" class="btn btn-lacquer" aria-haspopup="dialog">
+          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14.5 8.5l2 2"/></svg>
           <span id="keyStatusText">AI keys</span>
         </button>
       </div>
-    </header>
+    </div>
+  </header>
 
-    <main class="main-content">
-      <!-- 1. File + how to read it -->
-      <section class="card upload-card" id="uploadSection" aria-labelledby="uploadHeading">
-        <h2 class="section-title" id="uploadHeading"><span class="step-num" aria-hidden="true">1</span> Choose your sheet music</h2>
-        <div class="dropzone" id="dropzone">
-          <input type="file" id="fileInput" accept=".pdf,image/*,.musicxml,.xml,.mxl,.abc" hidden>
-          <div class="dropzone-content" id="dropzoneIdle">
-            <div class="upload-icon-bubble" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            </div>
-            <h3>Drop a file here</h3>
-            <p class="dropzone-subtitle">A PDF, a photo or scan (PNG, JPG, TIFF), or a MusicXML / ABC file to add tab to</p>
-            <div class="dropzone-actions">
-              <button type="button" class="btn btn-outline" id="browseBtn">Browse files</button>
-              <span class="file-limits">up to 50 MB</span>
-            </div>
-          </div>
-          <div class="dropzone-preview hidden" id="dropzonePreview">
-            <div class="file-info-badge">
-              <div class="file-icon-box" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-              </div>
-              <div class="file-meta">
-                <span class="file-name" id="fileName"></span>
-                <span class="file-size" id="fileSize"></span>
-              </div>
-              <button type="button" class="btn-icon" id="clearFileBtn" aria-label="Remove this file">
-                <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-              </button>
-            </div>
-            <div class="thumbnail-wrapper hidden" id="thumbnailWrapper">
-              <img id="imageThumbnail" alt="Preview of the chosen sheet music">
-            </div>
+  <main class="page">
+    <!-- 1. File + how to read it -->
+    <section class="panel bound" id="uploadSection" aria-labelledby="uploadHeading">
+      <h2 class="panel-title" id="uploadHeading"><span class="step" aria-hidden="true">1</span>Choose your sheet music</h2>
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept=".pdf,image/*,.musicxml,.xml,.mxl,.abc" hidden>
+        <div class="dropzone-idle" id="dropzoneIdle">
+          <svg class="icon icon-lg" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+          <h3>Drop a file here</h3>
+          <p class="dropzone-sub">A PDF, a photo or scan (PNG, JPG, TIFF), or a MusicXML / ABC file to add tab to</p>
+          <div class="dropzone-actions">
+            <button type="button" class="btn btn-secondary" id="browseBtn">Browse files</button>
+            <span class="file-limits">up to 50 MB</span>
           </div>
         </div>
-
-        <div class="controls-bar">
-          <div class="control-group" id="engineGroup">
-            <label for="engineSelect">How to read it</label>
-            <select id="engineSelect" class="form-select" aria-describedby="engineHint">
-              <option value="auto" selected>Auto (recommended)</option>
-              <option value="vector">Exact PDF reader (no AI)</option>
-              <option value="audiveris">Audiveris (offline)</option>
-              <option value="hybrid">Audiveris + AI check</option>
-              <option value="ai">AI only</option>
-            </select>
-            <p class="field-hint" id="engineHint"></p>
-          </div>
-          <div class="control-group" id="providerGroup">
-            <label for="providerSelect">AI service</label>
-            <select id="providerSelect" class="form-select" aria-describedby="providerHint"></select>
-            <p class="field-hint" id="providerHint"></p>
-          </div>
-          <div class="control-group" id="modelGroup">
-            <label for="modelSelect">AI model</label>
-            <select id="modelSelect" class="form-select" aria-describedby="modelHint"></select>
-            <input type="text" id="modelCustom" class="form-input hidden" placeholder="Type the model id, e.g. llava:13b" aria-label="Model id">
-            <p class="field-hint" id="modelHint"></p>
-          </div>
-          <div class="control-group" id="votesGroup">
-            <label for="votesSelect">Accuracy</label>
-            <select id="votesSelect" class="form-select" aria-describedby="votesHint">
-              <option value="1" selected>Standard</option>
-              <option value="3">Careful (3 readings)</option>
-            </select>
-            <p class="field-hint" id="votesHint">Careful reads every staff three times and keeps the majority: about 3x the API cost.</p>
-          </div>
-          <div class="control-group" id="pageRangeGroup">
-            <label for="pageRange">Pages (optional)</label>
-            <input type="text" id="pageRange" class="form-input" placeholder="all, or e.g. 1-2" aria-describedby="pageHint">
-            <p class="field-hint" id="pageHint">For PDFs with several pages.</p>
-          </div>
-          <div class="control-actions">
-            <button type="button" id="transcribeBtn" class="btn btn-primary btn-glow" disabled>
-              <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>
-              <span>Convert</span>
+        <div class="dropzone-preview hidden" id="dropzonePreview">
+          <div class="file-chip">
+            <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            <div class="file-meta">
+              <span class="file-name" id="fileName"></span>
+              <span class="file-size" id="fileSize"></span>
+            </div>
+            <button type="button" class="btn-icon" id="clearFileBtn" aria-label="Remove this file">
+              <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
+          <div class="thumbnail hidden" id="thumbnailWrapper"></div>
         </div>
-      </section>
+      </div>
 
-      <!-- Progress -->
-      <section class="card progress-card hidden" id="progressSection" aria-labelledby="progressTitle">
-        <div class="progress-header">
-          <div class="spinner-ring" aria-hidden="true"></div>
-          <div class="progress-heading">
-            <h3 id="progressTitle">Converting...</h3>
-            <p id="progressSubtitle" class="text-muted" role="status" aria-live="polite">Starting</p>
-          </div>
-          <button type="button" class="btn btn-outline btn-sm" id="cancelBtn">Cancel</button>
+      <div class="controls-row">
+        <div class="field" id="engineGroup">
+          <label for="engineSelect">How to read it</label>
+          <select id="engineSelect" class="select" aria-describedby="engineHint">
+            <option value="auto" selected>Auto (recommended)</option>
+            <option value="vector">Exact PDF reader (no AI)</option>
+            <option value="audiveris">Audiveris (offline)</option>
+            <option value="hybrid">Audiveris + AI check</option>
+            <option value="ai">AI only</option>
+          </select>
+          <p class="hint" id="engineHint"></p>
         </div>
-        <div class="progress-bar-container" role="progressbar" aria-label="Conversion progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBarBox">
-          <div class="progress-bar-fill" id="progressBar"></div>
+        <div class="field" id="providerGroup">
+          <label for="providerSelect">AI service</label>
+          <select id="providerSelect" class="select" aria-describedby="providerHint"></select>
+          <p class="hint" id="providerHint"></p>
         </div>
-        <ul class="progress-log" id="progressLog" aria-label="Progress details"></ul>
-      </section>
+        <div class="field" id="modelGroup">
+          <label for="modelSelect">AI model</label>
+          <select id="modelSelect" class="select" aria-describedby="modelHint"></select>
+          <input type="text" id="modelCustom" class="input hidden" placeholder="Type the model id, e.g. llava:13b" aria-label="Model id">
+          <p class="hint" id="modelHint"></p>
+        </div>
+        <div class="field" id="votesGroup">
+          <label for="votesSelect">Accuracy</label>
+          <select id="votesSelect" class="select" aria-describedby="votesHint">
+            <option value="1" selected>Standard</option>
+            <option value="3">Careful (3 readings)</option>
+          </select>
+          <p class="hint" id="votesHint">Careful reads every staff three times and keeps the majority: about 3x the API cost.</p>
+        </div>
+        <div class="field" id="pageRangeGroup">
+          <label for="pageRange">Pages (optional)</label>
+          <input type="text" id="pageRange" class="input" placeholder="all, or e.g. 1-2" aria-describedby="pageHint">
+          <p class="hint" id="pageHint">For PDFs with several pages.</p>
+        </div>
+        <div class="field field-action">
+          <button type="button" id="transcribeBtn" class="btn btn-primary btn-convert" disabled>
+            <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6h10M4 12h16M4 18h7"/><path d="M15 15l3 3 3-3M18 9v9"/></svg>
+            <span>Convert to tab</span>
+          </button>
+        </div>
+      </div>
 
-      <!-- 2. Arrangement -->
-      <section class="card arrangement-card" id="arrangementSection" aria-labelledby="arrHeading">
-        <h2 class="section-title" id="arrHeading"><span class="step-num" aria-hidden="true">2</span> Your instrument and tab</h2>
-        <div class="arr-grid">
-          <div class="control-group toggle-group">
-            <span class="group-label" id="tabToggleLabel">Tab staff</span>
-            <label class="checkbox-toggle-wrapper" for="mandolinTabToggle">
-              <span class="toggle-switch">
-                <input type="checkbox" id="mandolinTabToggle" checked aria-describedby="tabToggleLabel">
-                <span class="toggle-slider" aria-hidden="true"></span>
-              </span>
-              <span class="toggle-label">Add tab under the notes</span>
-            </label>
-          </div>
-          <div class="control-group">
-            <label for="instrumentSelect">Instrument</label>
-            <select id="instrumentSelect" class="form-select arr-input"></select>
-          </div>
-          <div class="control-group">
-            <label for="tuningSelect">Tuning</label>
-            <select id="tuningSelect" class="form-select arr-input"></select>
-            <fieldset class="custom-tuning hidden" id="customTuning">
-              <legend>Courses, lowest first</legend>
-              <div class="note-boxes">
-                <input type="text" class="form-input note-box arr-input" id="tune1" aria-label="Lowest course" value="G3">
-                <input type="text" class="form-input note-box arr-input" id="tune2" aria-label="Second course" value="D4">
-                <input type="text" class="form-input note-box arr-input" id="tune3" aria-label="Third course" value="A4">
-                <input type="text" class="form-input note-box arr-input" id="tune4" aria-label="Highest course" value="E5">
-              </div>
-            </fieldset>
-          </div>
-          <div class="control-group narrow">
-            <label for="capoInput">Capo fret</label>
-            <input type="number" id="capoInput" class="form-input arr-input" min="0" max="7" value="0">
-          </div>
-          <div class="control-group">
-            <label for="styleSelect">Fingering style</label>
-            <select id="styleSelect" class="form-select arr-input" aria-describedby="styleHint"></select>
-            <p class="field-hint" id="styleHint"></p>
-          </div>
-          <div class="control-group narrow hidden" id="positionGroup">
-            <label for="positionInput">Position (index finger fret)</label>
-            <input type="number" id="positionInput" class="form-input arr-input" min="1" max="15" value="5">
-          </div>
-          <div class="control-group narrow">
-            <label for="maxFretInput">Highest fret</label>
-            <input type="number" id="maxFretInput" class="form-input arr-input" min="5" max="29" value="20">
-          </div>
-          <div class="control-group">
-            <label for="skillLevelSelect">Skill level</label>
-            <select id="skillLevelSelect" class="form-select arr-input">
-              <option value="beginner" selected>Beginner (low frets, open strings)</option>
-              <option value="advanced">Advanced (shifts and higher frets allowed)</option>
-            </select>
-          </div>
-        </div>
+      <div class="arr-foot" aria-labelledby="railHeading">
+        <h3 class="foot-title" id="railHeading">Your tab on the fretboard <span>change instrument, tuning and fingering in step 2</span></h3>
+        <div class="rail-scroll"><div class="rail rail-compact" id="arrRail" aria-hidden="true"></div></div>
         <div class="arr-summary" id="arrSummary" aria-live="polite">
+          <dl class="readout" id="arrReadout">
+            <div><dt>Positions</dt><dd id="roPositions">-</dd></div>
+            <div><dt>Shifts</dt><dd id="roShifts">-</dd></div>
+            <div><dt>Highest fret</dt><dd id="roHighest">-</dd></div>
+            <div id="roLeftOffBox"><dt>Notes left off</dt><dd id="roLeftOff">-</dd></div>
+          </dl>
           <p id="arrSummaryText">These settings apply to the next conversion, and you can change them afterwards.</p>
           <ul id="arrSummaryList" class="arr-facts"></ul>
         </div>
-      </section>
+    </section>
 
-      <!-- 3. Results -->
-      <section class="card result-card hidden" id="resultSection" aria-labelledby="scoreTitleDisplay">
-        <div class="result-header">
-          <div class="score-summary">
-            <h2 id="scoreTitleDisplay">Score</h2>
-            <div class="badge-row">
-              <span class="badge badge-meta" id="scoreComposerBadge"></span>
-              <span class="badge badge-meta" id="scoreKeyBadge"></span>
-              <span class="badge badge-meta" id="scoreTimeBadge"></span>
-              <span class="badge badge-meta" id="scoreMeasuresBadge"></span>
-              <span class="badge badge-meta" id="engineBadge"></span>
-              <span class="badge badge-success" id="schemaBadge"></span>
+    <!-- Progress: the job band -->
+    <section class="jobband bound hidden" id="progressSection" aria-labelledby="progressTitle">
+      <div class="jobband-head lacquer">
+        <div class="jobband-heading">
+          <h2 id="progressTitle">Converting</h2>
+          <p id="progressSubtitle" role="status" aria-live="polite">Starting</p>
+        </div>
+        <button type="button" class="btn btn-lacquer" id="cancelBtn">Cancel</button>
+      </div>
+      <div class="jobband-board">
+        <div class="tick-rows" id="progressTicks" aria-hidden="true">
+          <div class="tick-row" id="stageTicks"><span class="tick-label">Steps</span><span class="ticks"></span></div>
+          <div class="tick-row hidden" id="systemTicks"><span class="tick-label">Staff systems <span class="tick-count"></span></span><span class="ticks"></span></div>
+        </div>
+        <div class="meter" role="progressbar" aria-label="Conversion progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progressBarBox">
+          <div class="meter-fill" id="progressBar"></div>
+        </div>
+        <ul class="joblog" id="progressLog" aria-label="Progress details"></ul>
+      </div>
+    </section>
+
+    <!-- 2. Arrangement -->
+    <section class="panel bound" id="arrangementSection" aria-labelledby="arrHeading">
+      <h2 class="panel-title" id="arrHeading"><span class="step" aria-hidden="true">2</span>Your instrument and tab</h2>
+      <div class="arr-grid">
+        <div class="field field-toggle">
+          <span class="field-label" id="tabToggleLabel">Tab staff</span>
+          <label class="toggle" for="mandolinTabToggle">
+            <input type="checkbox" id="mandolinTabToggle" checked aria-describedby="tabToggleLabel">
+            <span class="toggle-track" aria-hidden="true"></span>
+            <span>Add tab under the notes</span>
+          </label>
+        </div>
+        <div class="field">
+          <label for="instrumentSelect">Instrument</label>
+          <select id="instrumentSelect" class="select arr-input"></select>
+        </div>
+        <div class="field">
+          <label for="tuningSelect">Tuning</label>
+          <select id="tuningSelect" class="select arr-input"></select>
+          <fieldset class="custom-tuning hidden" id="customTuning">
+            <legend>Courses, lowest first</legend>
+            <div class="note-boxes">
+              <input type="text" class="input note-box arr-input" id="tune1" aria-label="Lowest course" value="G3">
+              <input type="text" class="input note-box arr-input" id="tune2" aria-label="Second course" value="D4">
+              <input type="text" class="input note-box arr-input" id="tune3" aria-label="Third course" value="A4">
+              <input type="text" class="input note-box arr-input" id="tune4" aria-label="Highest course" value="E5">
             </div>
+          </fieldset>
+        </div>
+        <div class="field field-narrow">
+          <label for="capoInput">Capo fret</label>
+          <input type="number" id="capoInput" class="input arr-input" min="0" max="7" value="0">
+        </div>
+        <div class="field">
+          <label for="styleSelect">Fingering style</label>
+          <select id="styleSelect" class="select arr-input" aria-describedby="styleHint"></select>
+          <p class="hint" id="styleHint"></p>
+        </div>
+        <div class="field field-narrow hidden" id="positionGroup">
+          <label for="positionInput">Position (index finger fret)</label>
+          <input type="number" id="positionInput" class="input arr-input" min="1" max="15" value="5">
+        </div>
+        <div class="field field-narrow">
+          <label for="maxFretInput">Highest fret</label>
+          <input type="number" id="maxFretInput" class="input arr-input" min="5" max="29" value="20">
+        </div>
+        <div class="field">
+          <label for="skillLevelSelect">Skill level</label>
+          <select id="skillLevelSelect" class="select arr-input" aria-describedby="skillHint">
+            <option value="beginner" selected>Beginner</option>
+            <option value="advanced">Advanced</option>
+          </select>
+          <p class="hint" id="skillHint">Beginner keeps to low frets and open strings; Advanced allows shifts and higher frets.</p>
+        </div>
+      </div>
+
+      </div>
+    </section>
+
+    <!-- 3. Results -->
+    <section class="panel bound result hidden" id="resultSection" aria-labelledby="scoreTitleDisplay">
+      <div class="result-head">
+        <div class="result-title">
+          <h2 id="scoreTitleDisplay">Score</h2>
+          <div class="badges">
+            <span class="badge" id="scoreComposerBadge"></span>
+            <span class="badge" id="scoreKeyBadge"></span>
+            <span class="badge" id="scoreTimeBadge"></span>
+            <span class="badge" id="scoreMeasuresBadge"></span>
+            <span class="badge" id="engineBadge"></span>
+            <span class="badge badge-ok" id="schemaBadge"></span>
           </div>
-          <div class="result-actions">
-            <button type="button" id="copyXmlBtn" class="btn btn-outline btn-sm"><span>Copy MusicXML</span></button>
-            <button type="button" id="downloadXmlBtn" class="btn btn-primary btn-sm"><span>Download .musicxml</span></button>
-            <button type="button" id="saveLocalBtn" class="btn btn-secondary btn-sm"><span>Save to the transcriptions folder</span></button>
-          </div>
         </div>
-
-        <div class="notice-box hidden" id="resultNotices" role="status">
-          <strong id="reviewBarsText"></strong>
-          <ul class="notice-list" id="warningsList"></ul>
+        <div class="result-actions">
+          <button type="button" id="copyXmlBtn" class="btn btn-secondary btn-sm"><span>Copy MusicXML</span></button>
+          <button type="button" id="downloadXmlBtn" class="btn btn-primary btn-sm"><span>Download .musicxml</span></button>
+          <button type="button" id="saveLocalBtn" class="btn btn-secondary btn-sm"><span>Save to the transcriptions folder</span></button>
         </div>
+      </div>
 
-        <div class="tabs-nav" role="tablist" aria-label="Result views">
-          <button type="button" class="tab-btn active" role="tab" id="tab-scoreTab" aria-selected="true" aria-controls="scoreTab" data-tab="scoreTab">Score</button>
-          <button type="button" class="tab-btn" role="tab" id="tab-asciiTab" aria-selected="false" aria-controls="asciiTab" data-tab="asciiTab" tabindex="-1">Tab (text)</button>
-          <button type="button" class="tab-btn" role="tab" id="tab-aboutTab" aria-selected="false" aria-controls="aboutTab" data-tab="aboutTab" tabindex="-1">About this piece</button>
-          <button type="button" class="tab-btn" role="tab" id="tab-abcTab" aria-selected="false" aria-controls="abcTab" data-tab="abcTab" tabindex="-1">Fix notes (ABC)</button>
-          <button type="button" class="tab-btn" role="tab" id="tab-xmlTab" aria-selected="false" aria-controls="xmlTab" data-tab="xmlTab" tabindex="-1">MusicXML</button>
-          <button type="button" class="tab-btn" role="tab" id="tab-infoTab" aria-selected="false" aria-controls="infoTab" data-tab="infoTab" tabindex="-1">How it was read</button>
-        </div>
+      <div class="notice hidden" id="resultNotices" role="status">
+        <strong id="reviewBarsText"></strong>
+        <ul class="notice-list" id="warningsList"></ul>
+      </div>
 
-        <!-- Score -->
-        <div class="tab-content active" id="scoreTab" role="tabpanel" aria-labelledby="tab-scoreTab">
-          <div class="score-toolbar">
-            <div class="playback-controls">
-              <button type="button" id="playBtn" class="btn btn-play">
-                <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                <span>Play</span>
-              </button>
-              <button type="button" id="stopBtn" class="btn btn-icon-round" aria-label="Stop playback">
-                <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
-              </button>
-              <div class="tempo-control">
-                <label for="tempoSlider">Speed: <span id="tempoValue">120</span> bpm</label>
-                <input type="range" id="tempoSlider" min="40" max="220" value="120">
-              </div>
-              <div class="instrument-control">
-                <label for="synthSound" class="visually-hidden">Playback sound</label>
-                <select id="synthSound" class="form-select select-sm">
-                  <option value="pluck">Plucked string</option>
-                  <option value="piano">Piano</option>
-                  <option value="marimba">Marimba</option>
-                </select>
-              </div>
+      <figure class="fingerboard" id="resultRailBox">
+        <div class="rail-scroll"><div class="rail" id="resultRail" aria-hidden="true"></div></div>
+        <figcaption id="railCaption">Hover a bar in the tab, or press Play, to see where the hand goes.</figcaption>
+      </figure>
+
+      <div class="sheet-index" role="tablist" aria-label="Result views">
+        <button type="button" class="tab-btn active" role="tab" id="tab-scoreTab" aria-selected="true" aria-controls="scoreTab" data-tab="scoreTab"><span class="sheet-no" aria-hidden="true">1</span>Score</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-asciiTab" aria-selected="false" aria-controls="asciiTab" data-tab="asciiTab" tabindex="-1"><span class="sheet-no" aria-hidden="true">2</span>Tab</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-aboutTab" aria-selected="false" aria-controls="aboutTab" data-tab="aboutTab" tabindex="-1"><span class="sheet-no" aria-hidden="true">3</span>About this piece</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-abcTab" aria-selected="false" aria-controls="abcTab" data-tab="abcTab" tabindex="-1"><span class="sheet-no" aria-hidden="true">4</span>Fix notes (ABC)</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-xmlTab" aria-selected="false" aria-controls="xmlTab" data-tab="xmlTab" tabindex="-1"><span class="sheet-no" aria-hidden="true">5</span>MusicXML</button>
+        <button type="button" class="tab-btn" role="tab" id="tab-infoTab" aria-selected="false" aria-controls="infoTab" data-tab="infoTab" tabindex="-1"><span class="sheet-no" aria-hidden="true">6</span>How it was read</button>
+      </div>
+
+      <!-- Score -->
+      <div class="sheet active" id="scoreTab" role="tabpanel" aria-labelledby="tab-scoreTab">
+        <div class="sheet-toolbar">
+          <div class="playback">
+            <button type="button" id="playBtn" class="btn btn-primary btn-sm btn-play">
+              <svg class="icon icon-fill" aria-hidden="true" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg>
+              <span>Play</span>
+            </button>
+            <button type="button" id="stopBtn" class="btn-icon" aria-label="Stop playback">
+              <svg class="icon icon-fill" aria-hidden="true" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
+            </button>
+            <div class="tempo">
+              <label for="tempoSlider">Speed <span class="num" id="tempoValue">120</span> bpm</label>
+              <input type="range" id="tempoSlider" min="40" max="220" value="120">
             </div>
-            <div class="zoom-controls">
-              <button type="button" id="zoomOutBtn" class="btn btn-icon-round" aria-label="Zoom out">&minus;</button>
-              <span id="zoomLevelText" aria-live="polite">100%</span>
-              <button type="button" id="zoomInBtn" class="btn btn-icon-round" aria-label="Zoom in">+</button>
-              <button type="button" id="zoomResetBtn" class="btn btn-icon-round" aria-label="Reset zoom">&#8634;</button>
-            </div>
+            <label for="synthSound" class="visually-hidden">Playback sound</label>
+            <select id="synthSound" class="select select-sm">
+              <option value="pluck">Plucked string</option>
+              <option value="piano">Piano</option>
+              <option value="marimba">Marimba</option>
+            </select>
           </div>
-          <div class="osmd-container-wrapper">
-            <div id="osmdCanvas" class="osmd-canvas"></div>
+          <div class="zoom">
+            <button type="button" id="zoomOutBtn" class="btn-icon" aria-label="Zoom out">
+              <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+            </button>
+            <span class="num" id="zoomLevelText" aria-live="polite">100%</span>
+            <button type="button" id="zoomInBtn" class="btn-icon" aria-label="Zoom in">
+              <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>
+            </button>
+            <button type="button" id="zoomResetBtn" class="btn-icon" aria-label="Reset zoom">
+              <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg>
+            </button>
           </div>
         </div>
-
-        <!-- ASCII tab -->
-        <div class="tab-content" id="asciiTab" role="tabpanel" aria-labelledby="tab-asciiTab">
-          <div class="xml-viewer-header">
-            <span>Plain-text tab - same fingering as the score</span>
-            <span class="viewer-actions">
-              <button type="button" class="btn btn-outline btn-sm" id="copyTabBtn">Copy</button>
-              <button type="button" class="btn btn-outline btn-sm" id="downloadTabBtn">Download .txt</button>
-            </span>
-          </div>
-          <pre class="xml-code-block ascii-tab" id="asciiTabContent" tabindex="0" aria-label="Text tab"></pre>
+        <div class="paper">
+          <div id="osmdCanvas" class="osmd-canvas"></div>
         </div>
+      </div>
 
-        <!-- About -->
-        <div class="tab-content" id="aboutTab" role="tabpanel" aria-labelledby="tab-aboutTab">
+      <!-- Text tab -->
+      <div class="sheet" id="asciiTab" role="tabpanel" aria-labelledby="tab-asciiTab">
+        <div class="sheet-toolbar">
+          <span class="sheet-caption">Plain-text tab, same fingering as the score</span>
+          <span class="toolbar-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="copyTabBtn">Copy</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="downloadTabBtn">Download .txt</button>
+          </span>
+        </div>
+        <pre class="ebony-text" id="asciiTabContent" tabindex="0" aria-label="Text tab"></pre>
+      </div>
+
+      <!-- About -->
+      <div class="sheet" id="aboutTab" role="tabpanel" aria-labelledby="tab-aboutTab">
+        <div class="paper paper-text">
           <div id="aboutContent"></div>
           <div class="ai-note-box">
             <div class="ai-note-head">
-              <h4>AI note</h4>
+              <h3>AI note</h3>
               <button type="button" class="btn btn-secondary btn-sm" id="aiNoteBtn">Write an AI note</button>
             </div>
-            <p class="field-hint" id="aiNoteHint">A short friendly write-up from the facts above, using the AI service chosen in step 1 (one short call).</p>
+            <p class="hint" id="aiNoteHint">A short friendly write-up from the facts above, using the AI service chosen in step 1 (one short call).</p>
             <div id="aiNoteContent" class="ai-note" aria-live="polite"></div>
           </div>
         </div>
+      </div>
 
-        <!-- ABC -->
-        <div class="tab-content" id="abcTab" role="tabpanel" aria-labelledby="tab-abcTab">
-          <p class="field-hint abc-hint" id="abcHint">The score as ABC text (L:1/8, so a plain letter is an eighth note). Fix a misread note or bar, then press Apply to redraw the notation and tab.</p>
-          <label for="abcEditor" class="visually-hidden">ABC text</label>
-          <textarea id="abcEditor" class="abc-editor" spellcheck="false" aria-describedby="abcHint"></textarea>
-          <div class="abc-actions">
-            <button type="button" class="btn btn-primary btn-sm" id="applyAbcBtn">Apply</button>
-          </div>
+      <!-- ABC -->
+      <div class="sheet" id="abcTab" role="tabpanel" aria-labelledby="tab-abcTab">
+        <p class="hint abc-hint" id="abcHint">The score as ABC text (L:1/8, so a plain letter is an eighth note). Fix a misread note or bar, then press Apply to redraw the notation and tab.</p>
+        <label for="abcEditor" class="visually-hidden">ABC text</label>
+        <textarea id="abcEditor" class="abc-editor" spellcheck="false" aria-describedby="abcHint"></textarea>
+        <div class="abc-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="applyAbcBtn">Apply changes</button>
         </div>
+      </div>
 
-        <!-- MusicXML -->
-        <div class="tab-content" id="xmlTab" role="tabpanel" aria-labelledby="tab-xmlTab">
-          <div class="xml-viewer-header">
-            <span class="xml-filename" id="xmlFilenameDisplay">score.musicxml</span>
-            <span class="xml-lines-count" id="xmlLinesCount">0 lines</span>
-          </div>
-          <pre class="xml-code-block" tabindex="0" aria-label="MusicXML source"><code id="xmlCodeContent"></code></pre>
+      <!-- MusicXML -->
+      <div class="sheet" id="xmlTab" role="tabpanel" aria-labelledby="tab-xmlTab">
+        <div class="sheet-toolbar">
+          <span class="sheet-caption" id="xmlFilenameDisplay">score.musicxml</span>
+          <span class="sheet-caption num" id="xmlLinesCount">0 lines</span>
         </div>
+        <pre class="code-text" tabindex="0" aria-label="MusicXML source"><code id="xmlCodeContent"></code></pre>
+      </div>
 
-        <!-- Provenance + checks -->
-        <div class="tab-content" id="infoTab" role="tabpanel" aria-labelledby="tab-infoTab">
-          <div id="provenanceContent" class="validation-details-box"></div>
-          <div class="validation-details-box">
-            <h4>MusicXML 4.0 schema check</h4>
-            <div id="validationStatusBox" class="validation-status-box valid">
-              <div class="status-icon" aria-hidden="true">&#10003;</div>
+      <!-- Provenance + checks -->
+      <div class="sheet" id="infoTab" role="tabpanel" aria-labelledby="tab-infoTab">
+        <div class="paper paper-text">
+          <div id="provenanceContent" class="info-block"></div>
+          <div class="info-block">
+            <h3>MusicXML 4.0 schema check</h3>
+            <div id="validationStatusBox" class="validation valid">
+              <span class="status-icon" aria-hidden="true"></span>
               <div>
                 <strong id="validationHeadline"></strong>
                 <p id="validationMessage"></p>
@@ -325,53 +344,51 @@
             </div>
             <ul id="validationErrorsList" class="errors-list"></ul>
           </div>
-          <div class="metadata-grid" id="metaGrid"></div>
-        </div>
-      </section>
-    </main>
-
-    <!-- Settings -->
-    <div class="modal-backdrop hidden" id="settingsModal">
-      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-        <div class="modal-header">
-          <h3 id="settingsTitle">AI services and keys</h3>
-          <button type="button" class="btn-icon" id="closeSettingsBtn" aria-label="Close settings">
-            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="pro-info-banner">
-            <p><strong>Keys are optional.</strong> PDFs exported from notation software are read exactly without one,
-              and Audiveris reads scans offline. A key lets an AI model check and repair scans and photos.
-              Keys stay on this computer and are only sent to that service.</p>
-          </div>
-
-          <div class="form-field">
-            <label for="anyKeyInput">Paste any key - SheetXML works out which service it belongs to</label>
-            <div class="input-with-button">
-              <input type="password" id="anyKeyInput" class="form-input" autocomplete="off" placeholder="AIza..., sk-ant-..., sk-sp-..., sk-or-...">
-              <button type="button" class="btn btn-primary btn-sm" id="anyKeyBtn">Add</button>
-            </div>
-            <div class="input-with-button hidden" id="anyKeyPick">
-              <label for="anyKeyProvider" class="visually-hidden">Service for this key</label>
-              <select id="anyKeyProvider" class="form-select"></select>
-              <button type="button" class="btn btn-primary btn-sm" id="anyKeyPickBtn">Save for this service</button>
-            </div>
-          </div>
-
-          <div id="providerRows" class="provider-rows"></div>
-          <p class="field-hint">A Claude Pro or Max subscription does not include API access: the Claude API is billed separately in the Claude Console.</p>
-          <div id="verifyStatusBox" class="verify-status hidden" role="status" aria-live="polite"></div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" id="closeSettingsBtn2">Close</button>
-          <button type="button" class="btn btn-primary" id="saveKeyBtn">Save keys</button>
+          <div class="meta-grid" id="metaGrid"></div>
         </div>
       </div>
-    </div>
+    </section>
+  </main>
 
-    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <!-- Settings -->
+  <div class="modal-backdrop hidden" id="settingsModal">
+    <div class="modal bound" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-head lacquer">
+        <h2 id="settingsTitle">AI services and keys</h2>
+        <button type="button" class="btn-icon btn-icon-lacquer" id="closeSettingsBtn" aria-label="Close settings">
+          <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-lede"><strong>Keys are optional.</strong> PDFs exported from notation software are read exactly without one,
+          and Audiveris reads scans offline. A key lets an AI model check and repair scans and photos.
+          Keys stay on this computer and are only sent to that service.</p>
+
+        <div class="any-key">
+          <label for="anyKeyInput">Paste any key and SheetXML works out which service it belongs to</label>
+          <div class="input-with-button">
+            <input type="password" id="anyKeyInput" class="input" autocomplete="off" placeholder="AIza..., sk-ant-..., sk-sp-..., sk-or-...">
+            <button type="button" class="btn btn-primary btn-sm" id="anyKeyBtn">Add key</button>
+          </div>
+          <div class="input-with-button hidden" id="anyKeyPick">
+            <label for="anyKeyProvider" class="visually-hidden">Service for this key</label>
+            <select id="anyKeyProvider" class="select"></select>
+            <button type="button" class="btn btn-primary btn-sm" id="anyKeyPickBtn">Save for this service</button>
+          </div>
+        </div>
+
+        <div id="providerRows" class="provider-rows"></div>
+        <p class="hint">A Claude Pro or Max subscription does not include API access: the Claude API is billed separately in the Claude Console.</p>
+        <div id="verifyStatusBox" class="verify-status hidden" role="status" aria-live="polite"></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-secondary" id="closeSettingsBtn2">Close</button>
+        <button type="button" class="btn btn-primary" id="saveKeyBtn">Save keys</button>
+      </div>
+    </div>
   </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>

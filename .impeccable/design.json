@@ -1,0 +1,686 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T14:51:55+00:00",
+  "title": "Design System: SheetXML",
+  "extensions": {
+    "colorMeta": {
+      "burst-hot": {
+        "role": "primary",
+        "displayName": "Burst Hot Centre",
+        "canonical": "#E8A845",
+        "tonalRamp": [
+          "oklch(15% 0.136 74.9)",
+          "oklch(26% 0.136 74.9)",
+          "oklch(37% 0.136 74.9)",
+          "oklch(48% 0.136 74.9)",
+          "oklch(60% 0.136 74.9)",
+          "oklch(72% 0.136 74.9)",
+          "oklch(84% 0.136 74.9)",
+          "oklch(95% 0.136 74.9)"
+        ]
+      },
+      "burst-centre": {
+        "role": "primary",
+        "displayName": "Burst Centre",
+        "canonical": "#D8902B",
+        "tonalRamp": [
+          "oklch(15% 0.139 70.0)",
+          "oklch(26% 0.139 70.0)",
+          "oklch(37% 0.139 70.0)",
+          "oklch(48% 0.139 70.0)",
+          "oklch(60% 0.139 70.0)",
+          "oklch(72% 0.139 70.0)",
+          "oklch(84% 0.139 70.0)",
+          "oklch(95% 0.139 70.0)"
+        ]
+      },
+      "burst-warm": {
+        "role": "primary",
+        "displayName": "Burst Warm",
+        "canonical": "#B8661C",
+        "tonalRamp": [
+          "oklch(15% 0.133 56.6)",
+          "oklch(26% 0.133 56.6)",
+          "oklch(37% 0.133 56.6)",
+          "oklch(48% 0.133 56.6)",
+          "oklch(60% 0.133 56.6)",
+          "oklch(72% 0.133 56.6)",
+          "oklch(84% 0.133 56.6)",
+          "oklch(95% 0.133 56.6)"
+        ]
+      },
+      "burst-mid": {
+        "role": "primary",
+        "displayName": "Burst Mid",
+        "canonical": "#7A3E12",
+        "tonalRamp": [
+          "oklch(15% 0.100 52.0)",
+          "oklch(26% 0.100 52.0)",
+          "oklch(37% 0.100 52.0)",
+          "oklch(48% 0.100 52.0)",
+          "oklch(60% 0.100 52.0)",
+          "oklch(72% 0.100 52.0)",
+          "oklch(84% 0.100 52.0)",
+          "oklch(95% 0.100 52.0)"
+        ]
+      },
+      "burst-deep": {
+        "role": "primary",
+        "displayName": "Burst Deep",
+        "canonical": "#4A2A12",
+        "tonalRamp": [
+          "oklch(15% 0.060 55.4)",
+          "oklch(26% 0.060 55.4)",
+          "oklch(37% 0.060 55.4)",
+          "oklch(48% 0.060 55.4)",
+          "oklch(60% 0.060 55.4)",
+          "oklch(72% 0.060 55.4)",
+          "oklch(84% 0.060 55.4)",
+          "oklch(95% 0.060 55.4)"
+        ]
+      },
+      "burst-dark": {
+        "role": "primary",
+        "displayName": "Burst Dark",
+        "canonical": "#2E1B0C",
+        "tonalRamp": [
+          "oklch(15% 0.039 57.8)",
+          "oklch(26% 0.039 57.8)",
+          "oklch(37% 0.039 57.8)",
+          "oklch(48% 0.039 57.8)",
+          "oklch(60% 0.039 57.8)",
+          "oklch(72% 0.039 57.8)",
+          "oklch(84% 0.039 57.8)",
+          "oklch(95% 0.039 57.8)"
+        ]
+      },
+      "burst-edge": {
+        "role": "primary",
+        "displayName": "Burst Edge",
+        "canonical": "#24160B",
+        "tonalRamp": [
+          "oklch(15% 0.030 58.4)",
+          "oklch(26% 0.030 58.4)",
+          "oklch(37% 0.030 58.4)",
+          "oklch(48% 0.030 58.4)",
+          "oklch(60% 0.030 58.4)",
+          "oklch(72% 0.030 58.4)",
+          "oklch(84% 0.030 58.4)",
+          "oklch(95% 0.030 58.4)"
+        ]
+      },
+      "on-lacquer": {
+        "role": "primary",
+        "displayName": "Lacquer Cream",
+        "canonical": "#F7EFDD",
+        "tonalRamp": [
+          "oklch(15% 0.025 86.9)",
+          "oklch(26% 0.025 86.9)",
+          "oklch(37% 0.025 86.9)",
+          "oklch(48% 0.025 86.9)",
+          "oklch(60% 0.025 86.9)",
+          "oklch(72% 0.025 86.9)",
+          "oklch(84% 0.025 86.9)",
+          "oklch(95% 0.025 86.9)"
+        ]
+      },
+      "on-lacquer-2": {
+        "role": "primary",
+        "displayName": "Aged Cream",
+        "canonical": "#E6D7B8",
+        "tonalRamp": [
+          "oklch(15% 0.044 85.2)",
+          "oklch(26% 0.044 85.2)",
+          "oklch(37% 0.044 85.2)",
+          "oklch(48% 0.044 85.2)",
+          "oklch(60% 0.044 85.2)",
+          "oklch(72% 0.044 85.2)",
+          "oklch(84% 0.044 85.2)",
+          "oklch(95% 0.044 85.2)"
+        ]
+      },
+      "ivoroid": {
+        "role": "secondary",
+        "displayName": "Ivoroid",
+        "canonical": "#EDE0BF",
+        "tonalRamp": [
+          "oklch(15% 0.046 89.1)",
+          "oklch(26% 0.046 89.1)",
+          "oklch(37% 0.046 89.1)",
+          "oklch(48% 0.046 89.1)",
+          "oklch(60% 0.046 89.1)",
+          "oklch(72% 0.046 89.1)",
+          "oklch(84% 0.046 89.1)",
+          "oklch(95% 0.046 89.1)"
+        ]
+      },
+      "purfling-dark": {
+        "role": "secondary",
+        "displayName": "Purfling Black",
+        "canonical": "#17140F",
+        "tonalRamp": [
+          "oklch(15% 0.011 80.5)",
+          "oklch(26% 0.011 80.5)",
+          "oklch(37% 0.011 80.5)",
+          "oklch(48% 0.011 80.5)",
+          "oklch(60% 0.011 80.5)",
+          "oklch(72% 0.011 80.5)",
+          "oklch(84% 0.011 80.5)",
+          "oklch(95% 0.011 80.5)"
+        ]
+      },
+      "purfling-light": {
+        "role": "secondary",
+        "displayName": "Purfling White",
+        "canonical": "#FBF8F0",
+        "tonalRamp": [
+          "oklch(15% 0.011 89.7)",
+          "oklch(26% 0.011 89.7)",
+          "oklch(37% 0.011 89.7)",
+          "oklch(48% 0.011 89.7)",
+          "oklch(60% 0.011 89.7)",
+          "oklch(72% 0.011 89.7)",
+          "oklch(84% 0.011 89.7)",
+          "oklch(95% 0.011 89.7)"
+        ]
+      },
+      "edge": {
+        "role": "secondary",
+        "displayName": "Binding Edge",
+        "canonical": "#2A1F14",
+        "tonalRamp": [
+          "oklch(15% 0.026 66.2)",
+          "oklch(26% 0.026 66.2)",
+          "oklch(37% 0.026 66.2)",
+          "oklch(48% 0.026 66.2)",
+          "oklch(60% 0.026 66.2)",
+          "oklch(72% 0.026 66.2)",
+          "oklch(84% 0.026 66.2)",
+          "oklch(95% 0.026 66.2)"
+        ]
+      },
+      "ebony": {
+        "role": "primary",
+        "displayName": "Ebony",
+        "canonical": "#17140F",
+        "tonalRamp": [
+          "oklch(15% 0.011 80.5)",
+          "oklch(26% 0.011 80.5)",
+          "oklch(37% 0.011 80.5)",
+          "oklch(48% 0.011 80.5)",
+          "oklch(60% 0.011 80.5)",
+          "oklch(72% 0.011 80.5)",
+          "oklch(84% 0.011 80.5)",
+          "oklch(95% 0.011 80.5)"
+        ]
+      },
+      "ebony-2": {
+        "role": "primary",
+        "displayName": "Ebony Two",
+        "canonical": "#221D17",
+        "tonalRamp": [
+          "oklch(15% 0.014 72.2)",
+          "oklch(26% 0.014 72.2)",
+          "oklch(37% 0.014 72.2)",
+          "oklch(48% 0.014 72.2)",
+          "oklch(60% 0.014 72.2)",
+          "oklch(72% 0.014 72.2)",
+          "oklch(84% 0.014 72.2)",
+          "oklch(95% 0.014 72.2)"
+        ]
+      },
+      "nickel": {
+        "role": "secondary",
+        "displayName": "Nickel",
+        "canonical": "#C9CCC9",
+        "tonalRamp": [
+          "oklch(15% 0.005 145.5)",
+          "oklch(26% 0.005 145.5)",
+          "oklch(37% 0.005 145.5)",
+          "oklch(48% 0.005 145.5)",
+          "oklch(60% 0.005 145.5)",
+          "oklch(72% 0.005 145.5)",
+          "oklch(84% 0.005 145.5)",
+          "oklch(95% 0.005 145.5)"
+        ]
+      },
+      "pearl": {
+        "role": "primary",
+        "displayName": "Pearl",
+        "canonical": "#F2EEE6",
+        "tonalRamp": [
+          "oklch(15% 0.011 84.6)",
+          "oklch(26% 0.011 84.6)",
+          "oklch(37% 0.011 84.6)",
+          "oklch(48% 0.011 84.6)",
+          "oklch(60% 0.011 84.6)",
+          "oklch(72% 0.011 84.6)",
+          "oklch(84% 0.011 84.6)",
+          "oklch(95% 0.011 84.6)"
+        ]
+      },
+      "pearl-dim": {
+        "role": "primary",
+        "displayName": "Dim Pearl",
+        "canonical": "#B5AC9F",
+        "tonalRamp": [
+          "oklch(15% 0.021 77.3)",
+          "oklch(26% 0.021 77.3)",
+          "oklch(37% 0.021 77.3)",
+          "oklch(48% 0.021 77.3)",
+          "oklch(60% 0.021 77.3)",
+          "oklch(72% 0.021 77.3)",
+          "oklch(84% 0.021 77.3)",
+          "oklch(95% 0.021 77.3)"
+        ]
+      },
+      "fret-empty": {
+        "role": "secondary",
+        "displayName": "Empty Fret",
+        "canonical": "#77726A",
+        "tonalRamp": [
+          "oklch(15% 0.014 79.7)",
+          "oklch(26% 0.014 79.7)",
+          "oklch(37% 0.014 79.7)",
+          "oklch(48% 0.014 79.7)",
+          "oklch(60% 0.014 79.7)",
+          "oklch(72% 0.014 79.7)",
+          "oklch(84% 0.014 79.7)",
+          "oklch(95% 0.014 79.7)"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Spruce Grey",
+        "canonical": "#DADBD6",
+        "tonalRamp": [
+          "oklch(15% 0.007 115.7)",
+          "oklch(26% 0.007 115.7)",
+          "oklch(37% 0.007 115.7)",
+          "oklch(48% 0.007 115.7)",
+          "oklch(60% 0.007 115.7)",
+          "oklch(72% 0.007 115.7)",
+          "oklch(84% 0.007 115.7)",
+          "oklch(95% 0.007 115.7)"
+        ]
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Panel Cream",
+        "canonical": "#FAF8F3",
+        "tonalRamp": [
+          "oklch(15% 0.007 88.6)",
+          "oklch(26% 0.007 88.6)",
+          "oklch(37% 0.007 88.6)",
+          "oklch(48% 0.007 88.6)",
+          "oklch(60% 0.007 88.6)",
+          "oklch(72% 0.007 88.6)",
+          "oklch(84% 0.007 88.6)",
+          "oklch(95% 0.007 88.6)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "oklch(15% 0.000 89.9)",
+          "oklch(26% 0.000 89.9)",
+          "oklch(37% 0.000 89.9)",
+          "oklch(48% 0.000 89.9)",
+          "oklch(60% 0.000 89.9)",
+          "oklch(72% 0.000 89.9)",
+          "oklch(84% 0.000 89.9)",
+          "oklch(95% 0.000 89.9)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#1D1813",
+        "tonalRamp": [
+          "oklch(15% 0.012 67.1)",
+          "oklch(26% 0.012 67.1)",
+          "oklch(37% 0.012 67.1)",
+          "oklch(48% 0.012 67.1)",
+          "oklch(60% 0.012 67.1)",
+          "oklch(72% 0.012 67.1)",
+          "oklch(84% 0.012 67.1)",
+          "oklch(95% 0.012 67.1)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Second Ink",
+        "canonical": "#5A5048",
+        "tonalRamp": [
+          "oklch(15% 0.019 61.0)",
+          "oklch(26% 0.019 61.0)",
+          "oklch(37% 0.019 61.0)",
+          "oklch(48% 0.019 61.0)",
+          "oklch(60% 0.019 61.0)",
+          "oklch(72% 0.019 61.0)",
+          "oklch(84% 0.019 61.0)",
+          "oklch(95% 0.019 61.0)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#BDB5A8",
+        "tonalRamp": [
+          "oklch(15% 0.020 80.1)",
+          "oklch(26% 0.020 80.1)",
+          "oklch(37% 0.020 80.1)",
+          "oklch(48% 0.020 80.1)",
+          "oklch(60% 0.020 80.1)",
+          "oklch(72% 0.020 80.1)",
+          "oklch(84% 0.020 80.1)",
+          "oklch(95% 0.020 80.1)"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Control Edge",
+        "canonical": "#8F8578",
+        "tonalRamp": [
+          "oklch(15% 0.023 74.5)",
+          "oklch(26% 0.023 74.5)",
+          "oklch(37% 0.023 74.5)",
+          "oklch(48% 0.023 74.5)",
+          "oklch(60% 0.023 74.5)",
+          "oklch(72% 0.023 74.5)",
+          "oklch(84% 0.023 74.5)",
+          "oklch(95% 0.023 74.5)"
+        ]
+      },
+      "amber": {
+        "role": "tertiary",
+        "displayName": "Hand-Window Amber",
+        "canonical": "#E8A845",
+        "tonalRamp": [
+          "oklch(15% 0.136 74.9)",
+          "oklch(26% 0.136 74.9)",
+          "oklch(37% 0.136 74.9)",
+          "oklch(48% 0.136 74.9)",
+          "oklch(60% 0.136 74.9)",
+          "oklch(72% 0.136 74.9)",
+          "oklch(84% 0.136 74.9)",
+          "oklch(95% 0.136 74.9)"
+        ]
+      },
+      "inspector": {
+        "role": "tertiary",
+        "displayName": "Inspector Red",
+        "canonical": "#B3261E",
+        "tonalRamp": [
+          "oklch(15% 0.160 28.7)",
+          "oklch(26% 0.160 28.7)",
+          "oklch(37% 0.160 28.7)",
+          "oklch(48% 0.160 28.7)",
+          "oklch(60% 0.160 28.7)",
+          "oklch(72% 0.160 28.7)",
+          "oklch(84% 0.160 28.7)",
+          "oklch(95% 0.160 28.7)"
+        ]
+      },
+      "inspector-wash": {
+        "role": "tertiary",
+        "displayName": "Inspector Wash",
+        "canonical": "#FBEDEA",
+        "tonalRamp": [
+          "oklch(15% 0.016 32.0)",
+          "oklch(26% 0.016 32.0)",
+          "oklch(37% 0.016 32.0)",
+          "oklch(48% 0.016 32.0)",
+          "oklch(60% 0.016 32.0)",
+          "oklch(72% 0.016 32.0)",
+          "oklch(84% 0.016 32.0)",
+          "oklch(95% 0.016 32.0)"
+        ]
+      },
+      "tobacco": {
+        "role": "tertiary",
+        "displayName": "Tobacco",
+        "canonical": "#7A3E12",
+        "tonalRamp": [
+          "oklch(15% 0.100 52.0)",
+          "oklch(26% 0.100 52.0)",
+          "oklch(37% 0.100 52.0)",
+          "oklch(48% 0.100 52.0)",
+          "oklch(60% 0.100 52.0)",
+          "oklch(72% 0.100 52.0)",
+          "oklch(84% 0.100 52.0)",
+          "oklch(95% 0.100 52.0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "SheetXML wordmark only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Piece title on the result panel."
+      },
+      "title-panel": {
+        "displayName": "Title Panel",
+        "purpose": "Bound-panel headings, led by an ebony step number."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Job band, dialog and dropzone headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text, tabular figures on."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Uppercase field, readout, tick-row and meta labels."
+      },
+      "numeral": {
+        "displayName": "Numeral",
+        "purpose": "Readout values and every compared figure."
+      },
+      "tab": {
+        "displayName": "Tab",
+        "purpose": "Plain-text tab on ebony."
+      }
+    },
+    "shadows": [
+      {
+        "name": "purfling",
+        "value": "inset 0 0 0 1px #17140F, inset 0 0 0 2px #FBF8F0, inset 0 0 0 3px #17140F",
+        "purpose": "Inside every bound surface's 5px ivoroid border."
+      },
+      {
+        "name": "ebony-bevel",
+        "value": "inset 0 0 0 2px #17140F, inset 0 0 0 3px #4B4237",
+        "purpose": "Primary buttons."
+      },
+      {
+        "name": "toast-lift",
+        "value": "0 10px 28px -6px rgba(23, 20, 15, 0.45)",
+        "purpose": "The toast only."
+      },
+      {
+        "name": "lacquer",
+        "value": "radial-gradient(ellipse 58% 260% at 50% 125%, #E8A845 0%, #D8902B 16%, #B8661C 34%, #7A3E12 52%, #4A2A12 70%, #2E1B0C 86%, #24160B 100%)",
+        "purpose": "Shared sunburst field for masthead and job band head (a background, listed here for reference)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Tick stamp, meter fill, toggle thumb."
+      },
+      {
+        "name": "stamp",
+        "value": "520ms ease-out; scale(1.9) rotate(-8deg) to rest",
+        "purpose": "The one authored moment: a progress tick per staff system."
+      },
+      {
+        "name": "state",
+        "value": "120ms",
+        "purpose": "Colour and border changes on buttons, dropzone, toggle."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none; transition: none",
+        "purpose": "All motion drops under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "arr-stack",
+        "value": "860px"
+      },
+      {
+        "name": "phone",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "description": "Ebony with pearl text and an inset fret-edge bevel; the main action.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Download .musicxml</button>",
+      "css": ".ds-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; padding:0 16px; font:600 0.9rem/1 system-ui, 'Segoe UI', sans-serif; border:1px solid transparent; border-radius:6px; cursor:pointer; transition:background-color 120ms, color 120ms, border-color 120ms; } .ds-btn:focus-visible { outline:2px solid #7A3E12; outline-offset:2px; } .ds-btn-primary { background:var(--ebony, #17140F); color:var(--pearl, #F2EEE6); border-color:var(--ebony, #17140F); box-shadow: inset 0 0 0 2px #17140F, inset 0 0 0 3px #4B4237; } .ds-btn-primary:hover { background:#2E2820; }",
+      "refersTo": "button-primary"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "description": "Paper with an ink border; secondary actions on light surfaces.",
+      "html": "<button class=\"ds-btn2\">Copy MusicXML</button>",
+      "css": ".ds-btn2 { display:inline-flex; align-items:center; min-height:40px; padding:0 16px; font:600 0.9rem/1 system-ui, 'Segoe UI', sans-serif; background:var(--paper, #FFFFFF); color:var(--ink, #1D1813); border:1px solid var(--ink, #1D1813); border-radius:6px; cursor:pointer; transition:background-color 120ms; } .ds-btn2:hover { background:#F1ECE2; } .ds-btn2:focus-visible { outline:2px solid #7A3E12; outline-offset:2px; }",
+      "refersTo": "button-secondary"
+    },
+    {
+      "name": "Lacquer Button",
+      "kind": "button",
+      "description": "Near-black with a brass-tone edge; only on sunburst chrome.",
+      "html": "<div class=\"ds-lacq\"><button class=\"ds-btn-lacquer\">Try a sample score</button></div>",
+      "css": ".ds-lacq { padding:22px 24px; background:#24160B radial-gradient(ellipse 58% 260% at 50% 125%, #E8A845 0%, #D8902B 16%, #B8661C 34%, #7A3E12 52%, #4A2A12 70%, #2E1B0C 86%, #24160B 100%); } .ds-btn-lacquer { min-height:40px; padding:0 16px; font:600 0.9rem/1 system-ui, 'Segoe UI', sans-serif; background:#1A110A; color:#F7EFDD; border:1px solid #A8916A; border-radius:6px; cursor:pointer; transition:background-color 120ms, border-color 120ms; } .ds-btn-lacquer:hover { background:#33210F; border-color:#EDE0BF; } .ds-btn-lacquer:focus-visible { outline:2px solid #F7EFDD; outline-offset:2px; }",
+      "refersTo": "button-lacquer"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "description": "Paper field with control-edge border; ink border on hover.",
+      "html": "<input class=\"ds-input\" placeholder=\"Paste a key\">",
+      "css": ".ds-input { width:100%; min-height:40px; padding:8px 12px; font:0.93rem system-ui, 'Segoe UI', sans-serif; color:var(--ink, #1D1813); background:var(--paper, #FFFFFF); border:1px solid var(--line-strong, #8F8578); border-radius:6px; } .ds-input:hover { border-color:var(--ink, #1D1813); } .ds-input:focus-visible { outline:2px solid #7A3E12; outline-offset:2px; } .ds-input::placeholder { color:#6E655B; }",
+      "refersTo": "input"
+    },
+    {
+      "name": "Sheet Index Tabs",
+      "kind": "nav",
+      "description": "Numbered folder tabs for the result views; tobacco top edge on the active sheet.",
+      "html": "<div class=\"ds-tabs\"><button class=\"ds-tab ds-on\"><span class=\"ds-no\">1</span>Score</button><button class=\"ds-tab\"><span class=\"ds-no\">2</span>Tab</button><button class=\"ds-tab\"><span class=\"ds-no\">3</span>About this piece</button></div>",
+      "css": ".ds-tabs { display:flex; gap:2px; border-bottom:1px solid #1D1813; padding:4px 4px 0; } .ds-tab { position:relative; display:inline-flex; align-items:center; gap:8px; padding:10px 14px 9px; margin-bottom:-1px; font:700 1.08rem/1 'Big Shoulders Display', Bahnschrift, 'Arial Narrow', sans-serif; letter-spacing:0.02em; color:#5A5048; background:transparent; border:1px solid transparent; border-bottom:0; border-radius:6px 6px 0 0; cursor:pointer; } .ds-tab:hover { color:#1D1813; background:#EFEAE0; } .ds-tab:focus-visible { outline:2px solid #7A3E12; outline-offset:-3px; } .ds-no { display:inline-grid; place-items:center; width:20px; height:20px; font:600 0.75rem/1 Consolas, monospace; border:1px solid currentColor; border-radius:3px; } .ds-on { color:#1D1813; background:#FFFFFF; border-color:#1D1813; } .ds-on::before { content:\"\"; position:absolute; left:-1px; right:-1px; top:-1px; height:3px; background:#7A3E12; border-radius:6px 6px 0 0; } .ds-on .ds-no { background:#17140F; color:#F2EEE6; border-color:#17140F; }",
+      "refersTo": "tab-sheet"
+    },
+    {
+      "name": "Bound Panel",
+      "kind": "card",
+      "description": "Every working panel: ivoroid binding with black/ivoroid/black purfling.",
+      "html": "<section class=\"ds-bound\"><h2 class=\"ds-ptitle\"><span class=\"ds-step\">1</span>Choose your sheet music</h2><p>Drop a PDF, scan, photo, MusicXML or ABC file.</p></section>",
+      "css": ".ds-bound { background:#FAF8F3; color:#1D1813; padding:26px 28px 28px; border:5px solid #EDE0BF; border-radius:12px; outline:1px solid #2A1F14; box-shadow: inset 0 0 0 1px #17140F, inset 0 0 0 2px #FBF8F0, inset 0 0 0 3px #17140F; font:15px/1.5 system-ui, 'Segoe UI', sans-serif; } .ds-ptitle { display:flex; align-items:center; gap:12px; margin:0 0 20px; font:800 1.9rem/1 'Big Shoulders Display', Bahnschrift, 'Arial Narrow', sans-serif; letter-spacing:0.005em; } .ds-step { display:inline-grid; place-items:center; width:30px; height:30px; border-radius:4px; background:#17140F; color:#F2EEE6; font:700 1.05rem/1 Consolas, monospace; }",
+      "refersTo": "panel-bound"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "description": "Paper metadata chip; ink border when confirmed.",
+      "html": "<span class=\"ds-badge\">G major</span> <span class=\"ds-badge ds-ok\">MusicXML 4.0 valid</span>",
+      "css": ".ds-badge { display:inline-flex; align-items:center; gap:5px; font:0.78rem/1.3 system-ui, 'Segoe UI', sans-serif; padding:3px 8px; background:#FFFFFF; border:1px solid #BDB5A8; border-radius:4px; color:#1D1813; } .ds-ok { border-color:#1D1813; font-weight:600; }",
+      "refersTo": "badge"
+    },
+    {
+      "name": "Stamp",
+      "kind": "custom",
+      "description": "Provenance stamps on each staff system; never disappear.",
+      "html": "<span class=\"ds-stamp ds-conf\">Confirmed</span> <span class=\"ds-stamp ds-rep\">Repaired</span> <span class=\"ds-stamp ds-chk\">Check</span>",
+      "css": ".ds-stamp { display:inline-block; padding:3px 7px 2px; font:800 0.8rem/1 'Big Shoulders Display', Bahnschrift, 'Arial Narrow', sans-serif; letter-spacing:0.1em; text-transform:uppercase; color:#1D1813; border:1.5px solid currentColor; border-radius:3px; transform:rotate(-2deg); } .ds-conf { color:#7A3E12; } .ds-rep { border-style:double; border-width:3px; } .ds-chk { color:#B3261E; background:#FBEDEA; }"
+    },
+    {
+      "name": "Progress Ticks",
+      "kind": "custom",
+      "description": "Job band fret ticks that stamp in pearl, one per staff system.",
+      "html": "<div class=\"ds-board\"><span class=\"ds-lbl\">Staff systems</span><div class=\"ds-ticks\"><i class=\"ds-t ds-t-on\"></i><i class=\"ds-t ds-t-on\"></i><i class=\"ds-t\"></i><i class=\"ds-t\"></i></div></div>",
+      "css": ".ds-board { display:grid; grid-template-columns:9.5rem 1fr; align-items:center; gap:12px; padding:18px 22px; background:#17140F; } .ds-lbl { font:700 0.95rem/1.1 'Big Shoulders Display', Bahnschrift, 'Arial Narrow', sans-serif; letter-spacing:0.05em; text-transform:uppercase; color:#B5AC9F; } .ds-ticks { display:flex; gap:5px; } .ds-t { width:12px; height:24px; border:1px solid #77726A; border-radius:2px; } .ds-t-on { background:#F2EEE6; border-color:#F2EEE6; animation:ds-stamp 520ms cubic-bezier(0.16,1,0.3,1) both; } @keyframes ds-stamp { from { transform:scale(1.9) rotate(-8deg); opacity:0; } to { transform:none; opacity:1; } }"
+    },
+    {
+      "name": "Text Tab",
+      "kind": "custom",
+      "description": "Plain-text tab on ebony; the lit note inverts to pearl.",
+      "html": "<pre class=\"ds-tabtext\">E|--0--2--<span class=\"ds-lit\">4</span>--5--|\nA|--------------|</pre>",
+      "css": ".ds-tabtext { margin:0; font:0.9rem/1.5 Consolas, 'Cascadia Mono', monospace; color:#F2EEE6; background:#17140F; border-radius:4px; padding:16px 18px; white-space:pre; } .ds-lit { background:#F2EEE6; color:#17140F; border-radius:2px; }",
+      "refersTo": "ebony-text"
+    }
+  ],
+  "narrative": {
+    "northStar": "Sunburst & Pearl",
+    "overview": "The app wears the instrument: a Loar-era F-5 mandolin. Sunburst lacquer carries the chrome (the masthead band, the job band head, the settings dialog head). Ivoroid binding with black/ivoroid/black purfling edges every working panel, and the masthead's foot carries the same binding strip. The tab lives on an ebony fingerboard with nickel frets and pearl dots; the score reads on clean white paper. Everything else is a quiet spruce-grey ground that lets both ivoroid and white sheets read.\n\nDensity is a desk tool's density: one centred column (1180px), bound panels stacked in the order the job happens, hairline structure inside them. Lettering is condensed and heavy (Big Shoulders Display); running text is the system UI face; every number a player reads (tab, fret counts, readouts, file sizes) is Consolas with tabular figures. Motion has one authored moment: progress ticks stamp in, one per staff system. Everything else is instant or a 120ms colour change.\n\nThe world rejects the dark-glass AI dashboard and the plain white card stack.",
+    "keyCharacteristics": [
+      "Sunburst lacquer chrome built from one seven-stop burst sequence.",
+      "Ivoroid binding with black/ivoroid/black purfling on every bound surface.",
+      "Ebony fingerboard for the tab: nickel frets, pearl dots, amber hand window.",
+      "Condensed heavy display lettering, system body, monospace numerals.",
+      "Inspector red marks only what the player must check."
+    ],
+    "rules": [
+      {
+        "name": "The One Amber Rule",
+        "body": "Amber as a flat ink appears only as the hand window on the fingerboard rail. The lacquer's hot centre shares the hex but lives only inside the burst gradient; it never becomes a button, badge, or highlight.",
+        "section": "colors"
+      },
+      {
+        "name": "The Inspector Only Rule",
+        "body": "Red appears only where the player must check something. A surface that is not a warning or error carries no red.",
+        "section": "colors"
+      },
+      {
+        "name": "The Paper Is White Rule",
+        "body": "Notation renders black on pure white (paper). Never tint, darken, or texture the score sheet.",
+        "section": "colors"
+      },
+      {
+        "name": "The Numbers Are Consolas Rule",
+        "body": "Any figure a player compares or plays (frets, counts, sizes, readouts, tab) sets in the monospace face with tabular figures.",
+        "section": "typography"
+      },
+      {
+        "name": "The Display Never Runs Rule",
+        "body": "Big Shoulders sets headings, labels, and stamps only; paragraphs and buttons use the body face (the full-width Convert button is the one display-set button).",
+        "section": "typography"
+      },
+      {
+        "name": "The Binding Not Shadow Rule",
+        "body": "A surface earns separation with binding or a hairline, never a drop shadow. Floating, transient elements (the toast) are the only exception.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do build every lacquer surface from the seven burst tokens; prefer the shared lacquer gradient (ellipse 58% 260% at 50% 125%).",
+      "Do edge every working panel with the binding: 5px ivoroid, 1px dark outer edge, black/ivoroid/black inset purfling, 12px radius.",
+      "Do put tab and fret numbers on ebony in pearl Consolas, and score notation on pure white.",
+      "Do set labels in uppercase Big Shoulders 700 with 0.04-0.06em tracking.",
+      "Do switch the focus colour by material: tobacco on light, cream on lacquer, pearl on ebony.",
+      "Do keep motion to the tick stamp and short 120-140ms state changes, and drop all of it under reduced motion."
+    ],
+    "donts": [
+      "Don't use amber as a flat ink anywhere but the fingerboard hand window.",
+      "Don't use inspector red for anything but what the player must check.",
+      "Don't add drop shadows to panels or buttons; separation comes from binding and hairlines.",
+      "Don't tint, darken, or texture the score sheet.",
+      "Don't set body paragraphs or ordinary buttons in the display face.",
+      "Don't load fonts from a CDN; the display face is self-hosted so the app works offline."
+    ]
+  }
+}

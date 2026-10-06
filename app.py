@@ -735,7 +735,7 @@ class SheetXMLRequestHandler(SimpleHTTPRequestHandler):
             return self._send_json(400, {"success": False, "error": friendly_error(e, provider)})
         ids = [i for i in ids if not NOT_CHAT.search(i)]
         return self._send_json(200, {"success": True, "models": ids,
-                                     "message": f"{who} works - {len(ids)} model(s) available (no tokens used)."})
+                                     "message": f"{who} works - {len(ids)} model{'' if len(ids) == 1 else 's'} available (no tokens used)."})
 
 
 def server_answers(port: int) -> bool:
@@ -843,7 +843,7 @@ def run_cli(args):
     used = ", ".join(f"{m} x{n}" for m, n in result["modelsUsed"].items())
     print(f"\nEngine:     {result['engine']}" + (f" ({used})" if used else ""))
     if result["info"].get("skippedSystems"):
-        print(f"            {result['info']['skippedSystems']} system(s) confirmed by Audiveris + code, no AI call")
+        print(f"            {result['info']['skippedSystems']} staff systems confirmed by Audiveris + code, no AI call")
     print(f"Title:      {meta['title']}" + (f" - {meta['composer']}" if meta["composer"] else ""))
     print(f"Key / time: {meta['keySignature']}, {meta['timeSignature']}")
     print(f"Measures:   {meta['measureCount']}")
@@ -853,7 +853,7 @@ def run_cli(args):
     if stats:
         print(f"TAB:        {stats['arrangement']}: {stats['totalNotes']} notes, {stats['openStringsCount']} open, "
               f"frets {stats['lowestFret']}-{stats['highestFret']}, {stats['positionShifts']} position shifts"
-              + (f", {stats['unplayable']} unplayable note(s) left off" if stats["unplayable"] else ""))
+              + (f", {stats['unplayable']} unplayable note{'' if stats['unplayable'] == 1 else 's'} left off" if stats["unplayable"] else ""))
     for w in result["warnings"]:
         print(f"WARNING:    {w}")
     if result["reviewBars"]:

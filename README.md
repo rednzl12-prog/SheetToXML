@@ -69,13 +69,17 @@ is bundled) all work without internet. Only the AI engines and the AI note need 
 
 ## Install
 
-- **Windows installer**: run the SheetXML installer, then start SheetXML from the Start menu. Your keys, log and
-  saved files live in `%LOCALAPPDATA%\SheetXML`. Starting it again while it runs just opens the browser.
+- **Windows installer** (no Python needed): run `SheetXML-Setup-1.0.0.exe`. It installs per user (no admin) to
+  `%LOCALAPPDATA%\Programs\SheetXML` with Start menu shortcuts and an uninstaller, and offers to install the bundled
+  Audiveris 5.11 for offline scan reading (one admin prompt). Start SheetXML from the Start menu; starting it again
+  while it runs just opens the browser. `SheetXML-cli` is the command-line version. Your keys, log and saved files
+  live in `%LOCALAPPDATA%\SheetXML`. The exes are unsigned, so Windows SmartScreen asks once ("More info" → "Run anyway").
+  Building the installer yourself: see `packaging/README.md`.
 - **From source**: Python 3.11+, then `pip install -r requirements.txt` and start `run.bat` or `python app.py`.
   Data files stay in the project folder. Drop a file onto `transcribe.bat` to convert it directly.
 
-For scans without AI, install [Audiveris 5.11](https://github.com/Audiveris/audiveris/releases) (its Windows
-installer bundles Java); SheetXML finds it in `C:\Program Files\Audiveris`, or set `AUDIVERIS` to its folder.
+For scans without AI when running from source, install [Audiveris 5.11](https://github.com/Audiveris/audiveris/releases)
+(its Windows installer bundles Java); SheetXML finds it in `C:\Program Files\Audiveris`, or set `AUDIVERIS` to its folder.
 
 ## Command line
 

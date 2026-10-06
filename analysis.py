@@ -37,6 +37,11 @@ GDAE = ("G3", "D4", "A4", "E5")
 DEFAULT_TEMPO = 100         # quarter notes per minute when the score states none
 
 
+
+def _n(n: int, word: str) -> str:
+    """3, "note" -> "3 notes"; 1 -> "1 note"."""
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
 def _tonic_pc(fifths: int, mode: str) -> int:
     return ((fifths - abcxml.MODE_SHIFT.get(mode, 0)) * 7) % 12
 
@@ -339,7 +344,7 @@ def _form(bars: List[Bar], num: Callable[[int], int]) -> Dict[str, Any]:
         "phraseLength": Counter(sizes).most_common(1)[0][0] if sizes else 0}
     form["pattern"] = " ".join(f"{s['label']} ({s['bars']})" for s in form["sections"])
     distinct = len(reps)
-    form["shape"] = "through-composed" if distinct == len(units) else         f"{distinct} distinct section(s), some repeated or varied"
+    form["shape"] = "through-composed" if distinct == len(units) else         f"{_n(distinct, 'distinct section')}, some repeated or varied"
     # longest passage of 2+ bars heard again later (exact, non-overlapping); empty bars never match
     ids: Dict[tuple, int] = {}
     sid = [ids.setdefault(s, len(ids)) if any(e.pitches for e in b.events) else -1 - k   # O(n^2) int compares,
@@ -571,7 +576,7 @@ def analyze(score: Score, stats: Optional[dict] = None) -> Dict[str, Any]:
         bad = m.get("unplayable") or m["outOfRange"]
         if bad:
             pts += 1
-            reasons.append(f"{bad} note(s) outside the mandolin's range")
+            reasons.append(f"{_n(bad, 'note')} outside the mandolin's range")
     score10 = max(1, min(10, round(1 + pts)))
     d["difficulty"] = {"level": "beginner" if score10 <= 3 else "intermediate" if score10 <= 6 else "advanced",
                        "score": score10, "reasons": reasons or ["moderate speed, simple rhythms, comfortable range"]}
@@ -607,7 +612,7 @@ def _tips(d, short_bars, acc, tuplet_bars, chord_bars, leap, bpm, tempo) -> List
                     "practise that string crossing on its own")
     f = d["form"]
     if f.get("repeats"):
-        tips.append(f"Follow the {f['repeats']} repeat sign(s)" +
+        tips.append(f"Follow the {_n(f['repeats'], 'repeat sign')}" +
                     (" and take the 1st/2nd endings" if f.get("endings") else "") +
                     f" - {f['playedBars']} bars are played in all")
     if tuplet_bars:

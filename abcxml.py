@@ -1088,7 +1088,7 @@ def to_ascii_tab(score: Score, arrangement: Optional[Dict[str, Any]] = None, wid
     if shift:
         out.append(f"Octave shift: {shift:+d} (pitches moved into the {arr.inst['name'].lower()}'s range)")
     if unplayable:
-        out.append(f"Left out: {unplayable} note(s) this arrangement cannot play")
+        out.append(f"Left out: {unplayable} note{'' if unplayable == 1 else 's'} this arrangement cannot play")
     out += ["Rhythm: w h q e s t = whole half quarter eighth 16th 32nd, . dotted, 3e triplet, r rest, (n) tied", ""]
     i = 0
     while i < len(blocks):

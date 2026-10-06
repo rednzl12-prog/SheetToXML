@@ -736,7 +736,7 @@ def transcribe(data: bytes, *, provider: str, models: List[str], key: str, base_
         if status == "fallback":
             coded = sum(1 for b, mb in zip(sc.bars, models_bars) if mb and b is mb[0])
             rests = len(sc.bars) - took - coded
-            score.warnings.append(f"{where} could not be read by the model {why}; of {len(sc.bars)} measure(s), "
+            score.warnings.append(f"{where} could not be read by the model {why}; of {len(sc.bars)} measures, "
                                   f"{took} came from the offline OMR, {coded} from the notehead reader"
                                   + (f" and {rests} are placeholder rests." if rests else "."))
         left = check(sc, n, job["first"], job["piece_start"], job["piece_end"], head["clef"], job.get("heads"))

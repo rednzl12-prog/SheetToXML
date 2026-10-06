@@ -20,13 +20,21 @@ let renderSeq = 0;
 let osmd = null;
 let zoom = 1.0;
 let lastFocus = null;
+let tabBars = {};                  // text-tab bar number -> [{ s, f, col }] (string 1 = highest course)
+let xmlBars = {};                  // MusicXML measure number -> [{ s, f }] from the TAB staff
+let arrShown = null;               // the arrangement stats on screen (positions used, ...)
+let litTab = [];                   // text-tab spans currently lit
+let stageSeen = [], systemsSeen = new Set(), systemsTotal = 0;
+const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ICON_CHECK = '<svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+const ICON_ALERT = '<svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 7v6M12 17h.01"/></svg>';
 
 // audio
 let audioCtx = null, isPlaying = false, playbackTimeout = null, parsedNotes = [], playbackIndex = 0;
 
 const OCTAVE_LOWER = new Set(["octave-mandolin", "mandocello"]);   // written an octave above sounding pitch
 const ENGINE_HINTS = {
-  auto: "Best choice. Exported PDFs are read exactly; scans and photos go to Audiveris and, with an AI key, every staff is checked by the AI (staffs that Audiveris and SheetXML agree on cost nothing).",
+  auto: "Best choice: exported PDFs are read exactly; scans go to Audiveris, and an AI key only pays for the staffs it is unsure of.",
   vector: "Exact and free, for PDFs exported from MuseScore, Sibelius, Finale or Dorico. Not for scans or photos.",
   audiveris: "Free and offline, for scans and photos. Takes a minute or two per page; dense music may need fixing.",
   hybrid: "Audiveris reads it, then the AI checks each staff against the image. The most accurate option for scans.",
@@ -232,6 +240,7 @@ function updateArrangementUi() {
   $("customTuning").classList.toggle("hidden", $("tuningSelect").value !== "__custom");
   const tabOn = $("mandolinTabToggle").checked;
   document.querySelectorAll(".arr-input").forEach(el => { el.disabled = !tabOn; });
+  drawArrangementRail();
 }
 
 function onArrangementChange(e) {
@@ -260,6 +269,14 @@ function showArrangementSummary(data, error) {
   const text = $("arrSummaryText"), list = $("arrSummaryList"), box = $("arrSummary");
   box.classList.toggle("is-error", Boolean(error));
   list.innerHTML = "";
+  const a0 = !error && data && data.arrangement;
+  arrShown = a0 || null;
+  $("roPositions").textContent = a0 && a0.positionsUsed && a0.positionsUsed.length ? a0.positionsUsed.join(", ") : "-";
+  $("roShifts").textContent = a0 ? String(a0.positionShifts || 0) : "-";
+  $("roHighest").textContent = a0 ? String(a0.highestFret) : "-";
+  $("roLeftOff").textContent = a0 ? String(a0.unplayable || 0) : "-";
+  $("roLeftOffBox").classList.toggle("bad", Boolean(a0 && a0.unplayable));
+  drawArrangementRail();
   if (error) {
     text.textContent = "This arrangement can't be used: " + error;
     return;
@@ -272,11 +289,9 @@ function showArrangementSummary(data, error) {
   text.textContent = a.arrangement;
   const facts = [];
   facts.push(`Tuning, lowest course first: ${a.tuning.join(" ")}` + (a.capo ? ` - capo at fret ${a.capo} (tab frets count from the capo)` : ""));
-  if (a.positionsUsed && a.positionsUsed.length) facts.push(`Hand positions used: ${a.positionsUsed.join(", ")}; ${a.positionShifts} position shift(s)`);
-  facts.push(`Highest fret: ${a.highestFret}`);
-  if (a.transposedOctaves) facts.push(`Moved ${a.transposedOctaves > 0 ? "up" : "down"} ${Math.abs(a.transposedOctaves)} octave(s) to fit the instrument`);
+  if (a.transposedOctaves) facts.push(`Moved ${a.transposedOctaves > 0 ? "up" : "down"} ${plural(Math.abs(a.transposedOctaves), "octave")} to fit the instrument`);
   if (OCTAVE_LOWER.has(a.instrument)) facts.push("Sounds an octave lower than written (treble clef 8vb)");
-  if (a.unplayable) facts.push(`Warning: ${a.unplayable} note(s) are out of reach in this arrangement and were left off the tab`);
+  if (a.unplayable) facts.push(`Warning: ${plural(a.unplayable, "note")} ${a.unplayable === 1 ? "is" : "are"} out of reach in this arrangement and were left off the tab`);
   list.innerHTML = facts.map(f => `<li${f.startsWith("Warning") ? ' class="warn"' : ""}>${escapeHtml(f)}</li>`).join("");
 }
 
@@ -369,6 +384,16 @@ function setupEvents() {
   $("copyTabBtn").addEventListener("click", () => copyText(current && current.asciiTab, "Tab copied."));
   $("downloadTabBtn").addEventListener("click", () => download(current.asciiTab, currentFilename.replace(/\.musicxml$/, "") + "-tab.txt", "text/plain"));
   $("aiNoteBtn").addEventListener("click", writeAiNote);
+  const tabPre = $("asciiTabContent");
+  tabPre.addEventListener("mouseover", e => {
+    const el = e.target.closest("[data-bar]");
+    if (!el || isPlaying) return;
+    const bar = el.dataset.bar, notes = tabBars[bar] || [];
+    const col = el.classList.contains("fn") ? el.dataset.col : null;
+    markTab(bar, col);
+    railShow(col ? notes.filter(n => String(n.col) === col) : notes, notes, `Bar ${bar}`);
+  });
+  tabPre.addEventListener("mouseleave", () => { markTab(null); if (!isPlaying) railRest(); });
   let resizeTimer = null;
   window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawScore, 250); });
 }
@@ -403,7 +428,14 @@ function handleFile(file) {
   $("thumbnailWrapper").classList.add("hidden");
   if (file.type.startsWith("image/")) {
     const reader = new FileReader();
-    reader.onload = e => { $("imageThumbnail").src = e.target.result; $("thumbnailWrapper").classList.remove("hidden"); };
+    reader.onload = e => {
+      const img = document.createElement("img");
+      img.id = "imageThumbnail";
+      img.alt = "Preview of the chosen sheet music";
+      img.src = e.target.result;
+      $("thumbnailWrapper").replaceChildren(img);
+      $("thumbnailWrapper").classList.remove("hidden");
+    };
     reader.readAsDataURL(file);
   }
 }
@@ -449,14 +481,14 @@ function buildProviderRows() {
     row.innerHTML = `
       <div class="provider-head">
         <label for="key-${p.id}">${escapeHtml(p.name)}</label>
-        <span class="provider-status ${p.ready ? "ok" : ""}">${p.ready ? "&#10003; " : ""}${escapeHtml(status)}</span>
+        <span class="provider-status ${p.ready ? "ok" : ""}">${p.ready ? ICON_CHECK : ""}${escapeHtml(status)}</span>
         ${p.keyUrl ? `<a class="banner-link" href="${escapeAttr(p.keyUrl)}" target="_blank" rel="noopener noreferrer">Get a key<span class="visually-hidden"> for ${escapeHtml(p.name)} (opens a new tab)</span></a>` : ""}
       </div>
       ${p.id === "custom" ? `<label class="sub-label" for="customBaseUrl">Base URL (Ollama, LM Studio, Groq, Together...)</label>
-        <input type="url" id="customBaseUrl" class="form-input" placeholder="http://localhost:11434/v1" value="${escapeAttr(p.baseUrl || "")}">` : ""}
+        <input type="url" id="customBaseUrl" class="input" placeholder="http://localhost:11434/v1" value="${escapeAttr(p.baseUrl || "")}">` : ""}
       <div class="input-with-button">
-        <input type="password" id="key-${p.id}" class="form-input" autocomplete="off" placeholder="${escapeAttr(p.hasKey ? "Saved - type to replace" : (p.keyHint || "API key"))}">
-        <button type="button" class="btn btn-outline btn-sm" data-show="${p.id}" aria-pressed="false" aria-label="Show ${escapeAttr(p.name)} key">Show</button>
+        <input type="password" id="key-${p.id}" class="input" autocomplete="off" placeholder="${escapeAttr(p.hasKey ? "Saved - type to replace" : (p.keyHint || "API key"))}">
+        <button type="button" class="btn btn-secondary btn-sm" data-show="${p.id}" aria-pressed="false" aria-label="Show ${escapeAttr(p.name)} key">Show</button>
         <button type="button" class="btn btn-secondary btn-sm" data-test="${p.id}" aria-label="Test ${escapeAttr(p.name)} key">Test</button>
       </div>
       <p class="row-result" id="result-${p.id}" aria-live="polite"></p>`;
@@ -490,7 +522,7 @@ async function testKey(pid, btn) {
     if (data.success) {
       discovered[pid] = data.models || [];
       out.className = "row-result ok";
-      out.textContent = "✓ " + data.message;
+      out.textContent = "Works: " + data.message;
       if ($("providerSelect").value === pid) fillModels(currentModel());
     } else {
       out.className = "row-result bad";
@@ -571,8 +603,36 @@ function setBusy(busy) {
 
 function setProgress(frac) {
   const pct = Math.round((frac || 0) * 100);
-  $("progressBar").style.width = pct + "%";
+  $("progressBar").style.transform = `scaleX(${Math.max(0, Math.min(1, frac || 0))})`;
   $("progressBarBox").setAttribute("aria-valuenow", String(pct));
+  $("progressBarBox").setAttribute("aria-valuetext", systemsTotal
+    ? `${pct}%, ${systemsSeen.size} of ${systemsTotal} staff systems read` : `${pct}%`);
+}
+
+/** One tick per step, then one per staff system ("system 3/12: ..." in the job log); each tick stamps in once. */
+function resetTicks() {
+  stageSeen = []; systemsSeen = new Set(); systemsTotal = 0;
+  document.querySelectorAll("#progressTicks .ticks").forEach(t => { t.innerHTML = ""; });
+  $("systemTicks").classList.add("hidden");
+}
+
+function updateTicks(log) {
+  for (const line of log) {
+    const m = /^system (\d+)\/(\d+)/.exec(line);
+    if (m) { systemsSeen.add(+m[1]); systemsTotal = Math.max(systemsTotal, +m[2]); }
+    else if (!systemsTotal && !stageSeen.includes(line) && stageSeen.length < 10) stageSeen.push(line);
+  }
+  fillTicks($("stageTicks").querySelector(".ticks"), stageSeen.length, () => true);
+  $("systemTicks").classList.toggle("hidden", !systemsTotal);
+  if (systemsTotal) {
+    $("systemTicks").querySelector(".tick-count").textContent = `${systemsSeen.size}/${systemsTotal}`;
+    fillTicks($("systemTicks").querySelector(".ticks"), systemsTotal, i => systemsSeen.has(i + 1));
+  }
+}
+
+function fillTicks(box, count, isOn) {
+  while (box.children.length < count) box.appendChild(document.createElement("span")).className = "tick";
+  [...box.children].forEach((t, i) => { if (isOn(i)) t.classList.add("on"); });
 }
 
 async function startTranscription() {
@@ -597,6 +657,7 @@ async function startTranscription() {
   $("resultSection").classList.add("hidden");
   $("progressTitle").textContent = `Converting ${currentFile.name}`;
   $("progressSubtitle").textContent = "Uploading...";
+  resetTicks();
   setProgress(0);
   $("progressLog").innerHTML = "";
   setBusy(true);
@@ -631,8 +692,9 @@ async function pollJob() {
     showToast(job.error || "The job was lost - please try again.", 9000);
     return;
   }
-  setProgress(job.progress);
   const log = job.log || [];
+  updateTicks(log);
+  setProgress(job.progress);
   if (log.length) $("progressSubtitle").textContent = log[log.length - 1];
   $("progressLog").innerHTML = log.slice(-8).map(line => `<li>${escapeHtml(line)}</li>`).join("");
   $("progressLog").scrollTop = $("progressLog").scrollHeight;
@@ -709,8 +771,8 @@ function showResult(data, { fresh = false, edited = false } = {}) {
   $("scoreTimeBadge").textContent = meta.timeSignature || "";
   $("scoreMeasuresBadge").textContent = `${meta.measureCount || 0} measures`;
   $("engineBadge").textContent = engineLabel(provenance) + (provenance && provenance.edited ? " (edited)" : "");
-  $("schemaBadge").className = "badge " + (data.isValid ? "badge-success" : "badge-meta");
-  $("schemaBadge").textContent = data.isValid ? "✓ Valid MusicXML 4.0" : `MusicXML notes: ${(data.validationErrors || []).length}`;
+  $("schemaBadge").className = "badge" + (data.isValid ? " badge-ok" : "");
+  $("schemaBadge").innerHTML = data.isValid ? ICON_CHECK + "Valid MusicXML 4.0" : `MusicXML notes: ${(data.validationErrors || []).length}`;
 
   // warnings come from the reading; the bars to check from this rendering
   const review = data.reviewBars || [];
@@ -724,7 +786,8 @@ function showResult(data, { fresh = false, edited = false } = {}) {
   $("xmlFilenameDisplay").textContent = currentFilename;
   $("xmlLinesCount").textContent = `${data.musicxml.split("\n").length} lines`;
   $("xmlCodeContent").textContent = data.musicxml;
-  $("asciiTabContent").textContent = data.asciiTab || "Tab is switched off (step 2).";
+  if (data.asciiTab) $("asciiTabContent").innerHTML = tabHtml(data.asciiTab);
+  else { $("asciiTabContent").textContent = "Tab is switched off (step 2)."; tabBars = {}; }
   $("copyTabBtn").disabled = $("downloadTabBtn").disabled = !data.asciiTab;
 
   renderAbout(data.details);
@@ -735,9 +798,12 @@ function showResult(data, { fresh = false, edited = false } = {}) {
   if (bpm >= 40 && bpm <= 220) { $("tempoSlider").value = bpm; $("tempoValue").textContent = bpm; }
   parseNotesForPlayback(data.musicxml);
   $("resultSection").classList.remove("hidden");
+  railRest();
   renderScore(data.musicxml);
-  if (fresh) $("resultSection").scrollIntoView({ behavior: "smooth" });
+  if (fresh) $("resultSection").scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth" });
 }
+
+function plural(n, word) { return `${n} ${word}${n === 1 ? "" : "s"}`; }
 
 function fmtTime(s) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -749,7 +815,7 @@ function li(items) {
 
 function renderAbout(d) {
   const box = $("aboutContent");
-  if (!d) { box.innerHTML = `<p class="field-hint">No analysis for this score.</p>`; $("aiNoteBtn").disabled = true; return; }
+  if (!d) { box.innerHTML = `<p class="hint">No analysis for this score.</p>`; $("aiNoteBtn").disabled = true; return; }
   $("aiNoteBtn").disabled = false;
   const e = escapeHtml;
   const k = d.key || {};
@@ -773,8 +839,8 @@ function renderAbout(d) {
     cards.push(card("Rhythm", li([
       d.shortestNote ? `shortest note: ${e(d.shortestNote)}` : "",
       r.dottedNotes ? `${r.dottedNotes} dotted notes` : "",
-      r.tupletNotes ? `${r.tupletNotes} tuplet notes` : "",
-      r.tiedNotes ? `${r.tiedNotes} ties` : "",
+      r.tupletNotes ? `${plural(r.tupletNotes, "tuplet note")}` : "",
+      r.tiedNotes ? `${r.tiedNotes} tie${r.tiedNotes === 1 ? "" : "s"}` : "",
       `syncopation: ${e(r.syncopation)}`,
       r.doubleStops ? `${r.doubleStops} double stops` : "",
     ])));
@@ -783,11 +849,11 @@ function renderAbout(d) {
     const a = d.accidentals;
     cards.push(card("Accidentals", a.count ? `${a.count} (${e(a.notes.join(", "))})` : "none - everything is in the key"));
   }
-  let html = `<div class="metadata-grid about-grid">${cards.join("")}</div>`;
+  let html = `<div class="meta-grid about-grid">${cards.join("")}</div>`;
   const f = d.form || {};
   if (f.pattern) {
     html += section("Form", `<p>${e(f.pattern)}</p><p class="small">${e(f.shape || "")}` +
-      (f.repeats ? ` - ${f.repeats} repeat sign(s)${f.endings ? `, ${f.endings} 1st/2nd endings` : ""}, ${f.playedBars} bars played in all` : "") + "</p>");
+      (f.repeats ? ` - ${plural(f.repeats, "repeat sign")}${f.endings ? `, ${f.endings} 1st/2nd endings` : ""}, ${f.playedBars} bars played in all` : "") + "</p>");
   }
   if ((d.tips || []).length) html += section("Practice tips", li(d.tips.map(e)));
   const m = d.mandolin;
@@ -796,7 +862,7 @@ function renderAbout(d) {
       m.arrangement ? e(m.arrangement) : "",
       `${m.openStringsPercent}% open strings, ${m.firstPositionPercent}% in frets 0-7, highest fret ${m.highestFret}`,
       m.stringUsage ? "notes per course: " + Object.entries(m.stringUsage).map(([c, n]) => `${e(c)} ${n}`).join(", ") : "",
-      m.unplayable ? `Warning: ${m.unplayable} note(s) left off the tab (out of reach)` : "",
+      m.unplayable ? `Warning: ${plural(m.unplayable, "note")} left off the tab (out of reach)` : "",
     ]));
   }
   const h = d.harmony;
@@ -817,7 +883,7 @@ function card(label, body) {
 }
 
 function section(title, body) {
-  return `<section class="about-section"><h4>${title}</h4>${body}</section>`;
+  return `<section class="about-section"><h3>${title}</h3>${body}</section>`;
 }
 
 const STATUS_TEXT = {
@@ -836,12 +902,12 @@ function renderInfo(data) {
   const e = escapeHtml;
   const p = provenance || data;
   const info = p.info || {};
-  const parts = [`<h4>How it was read</h4><p><strong>${e(ENGINE_LABELS[p.engine] || p.engine || "")}</strong>${p.edited ? " - then edited by you" : ""}</p>`];
+  const parts = [`<h3>How it was read</h3><p><strong>${e(ENGINE_LABELS[p.engine] || p.engine || "")}</strong>${p.edited ? " - then edited by you" : ""}</p>`];
   const used = Object.entries(p.modelsUsed || {});
   if (used.length) parts.push(`<p>AI calls: ${used.map(([m, n]) => `${e(m)} (${n} call${n > 1 ? "s" : ""})`).join(", ")}</p>`);
   const systems = info.systems || [];
   if (info.skippedSystems) {
-    parts.push(`<p class="good">&#10003; ${info.skippedSystems} of ${systems.length || "?"} staff system(s) confirmed by Audiveris + code - no AI needed.</p>`);
+    parts.push(`<p class="good">${ICON_CHECK} ${info.skippedSystems} of ${systems.length || "?"} staff systems confirmed by Audiveris + code - no AI needed.</p>`);
   }
   const hd = info.header;
   if (hd) {
@@ -856,18 +922,25 @@ function renderInfo(data) {
     ])}</details>`);
   }
   if (systems.length) {
-    parts.push(`<details${systems.some(s => s.status === "fallback" || (s.problems || []).length) ? " open" : ""}><summary>Each staff system</summary><ol class="system-list">${systems.map(s =>
-      `<li><strong>Page ${s.page}, bars ${s.measures[0]}-${s.measures[1]}</strong>: ${e(STATUS_TEXT[s.status] || s.status)}` +
-      (s.model && s.status !== "confirmed" ? ` (${e(s.model)})` : "") +
-      (s.fromOmr ? `; ${s.fromOmr} bar(s) taken from Audiveris` : "") +
-      ((s.problems || []).length ? `<br><span class="small warn">Check: ${e(s.problems.join(" | "))}</span>` : "") + "</li>").join("")}</ol></details>`);
+    const STAMP = { confirmed: ["confirmed", "Confirmed"], model: ["ai", "AI read"], repaired: ["repaired", "Repaired"], fallback: ["check", "Check"] };
+    const needsCheck = sy => sy.status === "fallback" || (sy.problems || []).length > 0;
+    parts.push(`<h4>Each staff system</h4><div class="system-ticks" aria-hidden="true">${systems.map(sy =>
+      `<span class="t-${needsCheck(sy) ? "check" : (STAMP[sy.status] || ["ai"])[0]}"></span>`).join("")}</div><ol class="system-list">${systems.map(sy => {
+      const [k, label] = STAMP[sy.status] || ["ai", sy.status];
+      const stamps = `<span class="stamp stamp-${k}">${e(label)}</span>` +
+        (needsCheck(sy) && k !== "check" ? `<span class="stamp stamp-check">Check</span>` : "");
+      return `<li><span class="stamps">${stamps}</span><div><strong>Page ${sy.page}, bars ${sy.measures[0]}-${sy.measures[1]}</strong>: ${e(STATUS_TEXT[sy.status] || sy.status)}` +
+        (sy.model && sy.status !== "confirmed" ? ` (${e(sy.model)})` : "") +
+        (sy.fromOmr ? `; ${plural(sy.fromOmr, "bar")} taken from Audiveris` : "") +
+        ((sy.problems || []).length ? `<br><span class="small warn">Check: ${e(sy.problems.join(" | "))}</span>` : "") + "</div></li>";
+    }).join("")}</ol>`);
   }
-  if ((data.reviewBars || []).length) parts.push(`<p class="warn">Measures to check: ${data.reviewBars.join(", ")}</p>`);
+  if ((data.reviewBars || []).length) parts.push(`<p class="warn"><span class="stamp stamp-check">Check</span> Measures to check: ${data.reviewBars.join(", ")}</p>`);
   $("provenanceContent").innerHTML = parts.join("");
 
   const ok = data.isValid;
-  $("validationStatusBox").className = "validation-status-box " + (ok ? "valid" : "invalid");
-  $("validationStatusBox").querySelector(".status-icon").textContent = ok ? "✓" : "!";
+  $("validationStatusBox").className = "validation " + (ok ? "valid" : "invalid");
+  $("validationStatusBox").querySelector(".status-icon").innerHTML = ok ? ICON_CHECK : ICON_ALERT;
   $("validationHeadline").textContent = ok ? "Valid MusicXML 4.0" : "Schema notes";
   $("validationMessage").textContent = ok ? "Checked against the official MusicXML 4.0 schema: any notation program can open it."
     : "The file is well-formed XML; the schema reported:";
@@ -923,9 +996,157 @@ function markdown(text) {
     list = null;
     if (!line) { out.push(""); continue; }
     const h = line.match(/^#{1,6}\s+(.*)$/);
-    out.push(h ? `<h5>${inline(h[1])}</h5>` : `<p>${inline(line)}</p>`);
+    out.push(h ? `<h4>${inline(h[1])}</h4>` : `<p>${inline(line)}</p>`);
   }
   return out.map(x => Array.isArray(x) ? `<ul>${x.join("")}</ul>` : x).join("");
+}
+
+// ---------------------------------------------------------------- fingerboard rail
+
+/**
+ * The text tab as spans: each bar of each course line is a .bar and each fret number a .fn.
+ * Fills tabBars: bar number -> [{ s, f, col }], string 1 = the top (highest) course line, as in the tab.
+ * A system starts with a line "<first bar number>  <rhythm>", then one line per course ("E|-0-2-|...").
+ */
+function tabHtml(text) {
+  tabBars = {};
+  let first = null, stringNo = 0;
+  return text.split("\n").map(line => {
+    const course = /^(\s*[A-Ga-g][#b]?\d?)\|(.*)$/.exec(line);
+    if (!course) {
+      const head = /^\s*(\d+)\s/.exec(line);
+      if (head) { first = +head[1]; stringNo = 0; }
+      return escapeHtml(line);
+    }
+    if (first === null) return escapeHtml(line);
+    stringNo++;
+    const segs = course[2].split("|");
+    let col = course[1].length + 1, out = escapeHtml(course[1]) + "|";
+    segs.forEach((seg, i) => {
+      if (seg === "" && i === segs.length - 1) return;
+      const bar = first + i;
+      let html = "", last = 0;
+      seg.replace(/\d+/g, (num, at) => {
+        const c = col + at;
+        (tabBars[bar] = tabBars[bar] || []).push({ s: stringNo, f: +num, col: c });
+        html += escapeHtml(seg.slice(last, at)) + `<span class="fn" data-bar="${bar}" data-col="${c}">${num}</span>`;
+        last = at + num.length;
+        return num;
+      });
+      out += `<span class="bar" data-bar="${bar}">${html + escapeHtml(seg.slice(last))}</span>` + (i < segs.length - 1 ? "|" : "");
+      col += seg.length + 1;
+    });
+    return out;
+  }).join("\n");
+}
+
+function markTab(bar, col) {
+  litTab.forEach(el => el.classList.remove("lit"));
+  litTab = bar === null ? [] : [...$("asciiTabContent").querySelectorAll(
+    `.bar[data-bar="${bar}"]` + (col ? `, .fn[data-bar="${bar}"][data-col="${col}"]` : ""))];
+  litTab.forEach(el => el.classList.add("lit"));
+}
+
+/** Hand window for a bar's notes: index finger on the lowest fretted note, at least a four-fret span. */
+function handWindow(notes) {
+  const fretted = notes.filter(n => n.f > 0).map(n => n.f);
+  if (!fretted.length) return null;
+  const lo = Math.min(...fretted);
+  return [lo, Math.max(Math.max(...fretted), lo + 3)];
+}
+
+const INLAYS = [3, 5, 7, 10, 12, 15];
+let railSeq = 0;
+
+/**
+ * Ebony fingerboard as SVG: courses as doubled strings (highest on top, as in the tab), nickel frets at their
+ * real 12-TET spacing, pearl inlays, an amber hand window, and pearl markers on the lit notes.
+ * lit / windows use tab frets (counted from the capo).
+ */
+function railSvg({ tuning, capo = 0, frets = 15, lit = [], windows = [], compact = false }) {
+  const W = compact ? 700 : 1000, H = compact ? 96 : 128, nut = 62, end = W - 10;
+  const top = 12, bottom = H - (compact ? 12 : 30), n = tuning.length, id = "pearl" + (++railSeq);
+  const scale = (end - nut) / (1 - Math.pow(2, -frets / 12));
+  const fx = k => nut + scale * (1 - Math.pow(2, -k / 12));
+  const sy = i => top + 10 + i * (bottom - top - 20) / Math.max(1, n - 1);
+  const mid = k => (fx(k - 1) + fx(k)) / 2;
+  const r = v => v.toFixed(1);
+  const mono = 'font-family="Consolas, Cascadia Mono, monospace"';
+  const out = [`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" focusable="false">`,
+    `<defs><radialGradient id="${id}" cx="38%" cy="34%" r="70%"><stop offset="0" stop-color="#FFFFFF"/>` +
+    `<stop offset=".55" stop-color="#F2EEE6"/><stop offset="1" stop-color="#D9D2C4"/></radialGradient></defs>`,
+    `<rect width="${W}" height="${H}" rx="6" fill="#17140F"/>`];
+  windows.forEach(([lo, hi]) => {
+    const x1 = fx(Math.max(0, Math.min(frets - 1, capo + lo - 1))), x2 = fx(Math.min(frets, capo + hi));
+    out.push(`<rect x="${r(x1)}" y="${top}" width="${r(x2 - x1)}" height="${bottom - top}" fill="#E8A845" fill-opacity=".22"/>`,
+      `<path d="M${r(x1)} ${top + 1.2}H${r(x2)}M${r(x1)} ${bottom - 1.2}H${r(x2)}" stroke="#E8A845" stroke-width="2.5"/>`);
+  });
+  INLAYS.filter(k => k <= frets).forEach(k => {
+    const ys = k === 12 && n > 2 ? [(sy(0) + sy(1)) / 2, (sy(n - 2) + sy(n - 1)) / 2] : [(sy(0) + sy(n - 1)) / 2];
+    ys.forEach(y => out.push(`<circle cx="${r(mid(k))}" cy="${r(y)}" r="${compact ? 5.5 : 7}" fill="url(#${id})"/>`));
+  });
+  for (let k = 1; k <= frets; k++) out.push(`<path d="M${r(fx(k))} ${top}V${bottom}" stroke="#C9CCC9" stroke-width="3"/>`);
+  out.push(`<rect x="${nut - 6}" y="${top - 2}" width="6" height="${bottom - top + 4}" fill="#EDE0BF"/>`);
+  if (capo > 0) out.push(`<rect x="${r(fx(capo) - 12)}" y="${top - 4}" width="8" height="${bottom - top + 8}" rx="2" fill="#3A3631" stroke="#8E918E"/>`);
+  [...tuning].reverse().forEach((note, i) => {
+    const y = sy(i), col = i >= n / 2 ? "#CDBF9F" : "#DCDDD9";
+    out.push(`<path d="M${nut - 6} ${r(y - 1.7)}H${end}M${nut - 6} ${r(y + 1.7)}H${end}" stroke="${col}" stroke-width="${r(0.9 + i * 0.3)}"/>`,
+      `<text x="10" y="${r(y + 5)}" fill="#B5AC9F" ${mono} font-size="14">${escapeHtml(note)}</text>`);
+  });
+  if (!compact) INLAYS.filter(k => k <= frets).forEach(k =>
+    out.push(`<text x="${r(mid(k))}" y="${H - 9}" fill="#B5AC9F" ${mono} font-size="13" text-anchor="middle">${k}</text>`));
+  lit.forEach(({ s, f }) => {
+    if (!(s >= 1 && s <= n) || !(f >= 0)) return;
+    const y = sy(s - 1);
+    if (f === 0) {
+      out.push(`<circle cx="${r(capo > 0 ? fx(capo) - 24 : nut - 20)}" cy="${r(y)}" r="7" fill="none" stroke="#F2EEE6" stroke-width="2.5"/>`);
+    } else {
+      const x = mid(Math.min(frets, capo + f));
+      out.push(`<circle cx="${r(x)}" cy="${r(y)}" r="${compact ? 8 : 10.5}" fill="url(#${id})" stroke="#17140F" stroke-width="1.5"/>`,
+        `<text x="${r(x)}" y="${r(y + 4.5)}" fill="#17140F" ${mono} font-size="12.5" font-weight="700" text-anchor="middle">${f}</text>`);
+    }
+  });
+  out.push("</svg>");
+  return out.join("");
+}
+
+function railFrets(a) {
+  return Math.max(15, Math.min(24, (a.highestFret || 0) + (a.capo || 0) + 1));
+}
+
+/** Results rail: light the given notes in pearl and the bar's hand window in amber. */
+function railShow(lit, barNotes, label) {
+  const a = current && current.arrangement;
+  if (!a) return;
+  const win = handWindow(barNotes);
+  $("resultRail").innerHTML = railSvg({ tuning: a.tuning, capo: a.capo || 0, frets: railFrets(a), lit, windows: win ? [win] : [] });
+  $("railCaption").innerHTML = `<strong>${escapeHtml(label)}</strong>: ` +
+    (win ? `index finger at fret ${win[0]}, hand covers frets ${win[0]}-${win[1]}` : "open strings only") +
+    (a.capo ? ` (frets counted from the capo at ${a.capo})` : "");
+}
+
+function railRest() {
+  const a = current && current.arrangement;
+  $("resultRailBox").classList.toggle("hidden", !a);
+  if (!a) return;
+  $("resultRail").innerHTML = railSvg({ tuning: a.tuning, capo: a.capo || 0, frets: railFrets(a) });
+  $("railCaption").textContent = `${a.tuning.slice().reverse().join(" ")}, highest course on top as in the tab. Hover a bar in the tab, or press Play, to see where the hand goes.`;
+}
+
+function uiTuning() {
+  if ($("tuningSelect").value === "__custom") return [1, 2, 3, 4].map(i => $("tune" + i).value.trim()).filter(Boolean);
+  const t = (appConfig.presets.tunings || []).find(x => x.id === $("tuningSelect").value);
+  return t ? t.tuning : [];
+}
+
+/** Arrangement preview: the chosen tuning and capo, with the hand positions the current tab uses in amber. */
+function drawArrangementRail() {
+  const box = $("arrRail"), tuning = uiTuning();
+  if (!tuning.length) { box.innerHTML = ""; return; }
+  const used = (arrShown && arrShown.positionsUsed) || [];
+  box.innerHTML = railSvg({ tuning, capo: parseInt($("capoInput").value, 10) || 0, frets: 15, compact: true,
+    windows: used.map(h => [h, h + 3]) });
+  box.classList.toggle("is-off", !$("mandolinTabToggle").checked);
 }
 
 // ---------------------------------------------------------------- OSMD
@@ -933,7 +1154,7 @@ function markdown(text) {
 function initOSMD() {
   if (!(window.opensheetmusicdisplay && window.opensheetmusicdisplay.OpenSheetMusicDisplay)) return;
   osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmdCanvas", {
-    autoResize: false, backend: "svg", drawTitle: true, drawComposer: true, drawCredits: true,
+    autoResize: false, backend: "svg", drawTitle: false, drawComposer: false, drawCredits: true,
     drawPartNames: true, drawingParameters: "compacttight",
   });
 }
@@ -948,7 +1169,9 @@ function renderScore(xml) {
 
 /** OSMD lays out against the container width, so a hidden Score tab is drawn when it is shown (selectTab). */
 function drawScore() {
-  if (!osmd || !current || !$("osmdCanvas").offsetWidth) return;
+  const w = $("osmdCanvas").offsetWidth;
+  if (!osmd || !current || !w) return;
+  osmd.zoom = zoom;
   osmd.render();
   if (osmd.cursor) osmd.cursor.hide();
 }
@@ -972,11 +1195,13 @@ function parseNotesForPlayback(xml) {
     const doc = new DOMParser().parseFromString(xml, "text/xml");
     const part = doc.querySelector("part");
     if (!part) return;
-    const onsets = new Map();
+    const onsets = new Map(), tabAt = new Map();
+    xmlBars = {};
     let divisions = 1, measureStart = 0;
     for (const measure of part.children) {
       if (measure.tagName !== "measure") continue;
       let cursor = 0, lastStart = 0, measureLen = 0;
+      const mno = measure.getAttribute("number") || "";
       for (const el of measure.children) {
         if (el.tagName === "attributes") {
           const d = parseInt(el.querySelector("divisions")?.textContent, 10);
@@ -994,6 +1219,14 @@ function parseNotesForPlayback(xml) {
           const staff = el.querySelector("staff")?.textContent.trim() || "1";
           const voice = el.querySelector("voice")?.textContent.trim() || "1";
           const pitch = el.querySelector("pitch");
+          const tString = el.querySelector("technical string"), tFret = el.querySelector("technical fret");
+          if (staff === "2" && tString && tFret && !el.querySelector('tie[type="stop"]')) {
+            const pos = { s: parseInt(tString.textContent, 10), f: parseInt(tFret.textContent, 10) };
+            const t = measureStart + start;
+            if (!tabAt.has(t)) tabAt.set(t, []);
+            tabAt.get(t).push(pos);
+            (xmlBars[mno] = xmlBars[mno] || []).push(pos);
+          }
           if (staff !== "1" || voice !== "1" || !pitch) continue;
           const t = measureStart + start;
           if (el.querySelector('tie[type="stop"]')) {
@@ -1005,7 +1238,7 @@ function parseNotesForPlayback(xml) {
             parseInt(pitch.querySelector("alter")?.textContent || "0", 10),
             parseInt(pitch.querySelector("octave")?.textContent || "4", 10));
           let onset = onsets.get(t);
-          if (!onset) { onset = { start: t, beats, freqs: [] }; onsets.set(t, onset); parsedNotes.push(onset); }
+          if (!onset) { onset = { start: t, beats, freqs: [], bar: mno }; onsets.set(t, onset); parsedNotes.push(onset); }
           onset.beats = Math.max(onset.beats, beats);
           onset.freqs.push(freq);
         }
@@ -1013,6 +1246,7 @@ function parseNotesForPlayback(xml) {
       measureStart += measureLen;
     }
     parsedNotes.sort((a, b) => a.start - b.start);
+    parsedNotes.forEach(n => { n.tab = tabAt.get(n.start) || []; });
   } catch (err) {
     console.warn("Could not parse notes for playback:", err);
   }
@@ -1044,6 +1278,7 @@ function pausePlayback() {
 function stopPlayback() {
   pausePlayback();
   playbackIndex = 0;
+  railRest();
 }
 
 function playNext() {
@@ -1052,6 +1287,7 @@ function playNext() {
   const beatSec = 60 / (parseInt($("tempoSlider").value, 10) || 120);
   const soundSec = Math.max(0.08, note.beats * beatSec);
   note.freqs.forEach(f => tone(f, soundSec, $("synthSound").value));
+  if (note.tab.length) railShow(note.tab, xmlBars[note.bar] || note.tab, `Bar ${note.bar}`);
   playbackIndex++;
   playbackTimeout = setTimeout(playNext, (next ? Math.max(0.02, (next.start - note.start) * beatSec) : soundSec) * 1000);
 }
