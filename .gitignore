@@ -11,3 +11,8 @@ transcriptions/*
 build/
 dist/
 packaging/vendor/
+
+# impeccable session state (design brief in .impeccable/surfaces is tracked)
+.impeccable/hook.cache.json
+.impeccable/questions/
+.impeccable/review/

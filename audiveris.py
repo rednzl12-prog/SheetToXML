@@ -52,7 +52,8 @@ def command(exe: Path, src: Path, out: Path, page_range: str = "") -> List[str]:
 def _kill(proc: subprocess.Popen):
     """Kill the launcher and its Java child (a .bat launcher leaves java.exe running on a plain kill)."""
     if os.name == "nt":
-        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
+        subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True,
+                       stdin=subprocess.DEVNULL, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if proc.poll() is None:
         proc.kill()
     proc.wait()
@@ -134,7 +135,8 @@ def transcribe(data: bytes, filename: str, page_range: str = "",
     suffix = Path(filename or "").suffix.lower()
     if suffix not in INPUT_SUFFIXES:
         suffix = ".pdf" if data[:5] == b"%PDF-" else ".png"
-    with tempfile.TemporaryDirectory(prefix="sheetxml-audiveris-") as tmp:
+    # a killed Java child can hold its files a moment longer: don't let cleanup mask the real outcome
+    with tempfile.TemporaryDirectory(prefix="sheetxml-audiveris-", ignore_cleanup_errors=True) as tmp:
         src, out, log = Path(tmp) / ("score" + suffix), Path(tmp) / "out", Path(tmp) / "audiveris.log"
         src.write_bytes(data)
         out.mkdir()
@@ -144,14 +146,16 @@ def transcribe(data: bytes, filename: str, page_range: str = "",
                                     stdin=subprocess.DEVNULL, cwd=tmp,
                                     creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
             start = time.monotonic()
-            while proc.poll() is None:
-                if cancel and cancel():
+            try:
+                while proc.poll() is None:
+                    if cancel and cancel():
+                        raise llm.LLMError("Cancelled", "cancelled")
+                    if time.monotonic() - start > timeout:
+                        raise RuntimeError(f"Audiveris took longer than {timeout:.0f} s and was stopped.")
+                    time.sleep(0.5)
+            finally:                    # cancel, timeout, or anything else (Ctrl+C in the CLI): no orphan Java
+                if proc.poll() is None:
                     _kill(proc)
-                    raise llm.LLMError("Cancelled", "cancelled")
-                if time.monotonic() - start > timeout:
-                    _kill(proc)
-                    raise RuntimeError(f"Audiveris took longer than {timeout:.0f} s and was stopped.")
-                time.sleep(0.5)
         tail = log.read_text(encoding="utf-8", errors="replace")[-800:].strip()
         if proc.returncode != 0:
             raise RuntimeError(f"Audiveris failed (exit code {proc.returncode}). Last output:\n{tail}")

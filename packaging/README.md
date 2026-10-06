@@ -24,7 +24,7 @@ server answers `/api/config`) with `SHEETXML_DATA_DIR` in a temp folder.
 `packaging/installer.cs`, one source for the installer and `uninstall.exe`. Per user, no admin: installs to
 `%LOCALAPPDATA%\Programs\SheetXML`, Start menu folder (SheetXML, SheetXML Command Line, Uninstall), optional desktop
 shortcut, entry in Windows Settings > Apps (`HKCU\...\Uninstall\SheetXML`). The Audiveris option runs
-`msiexec /i ... /passive` elevated (one UAC prompt); it is unchecked when Audiveris is already installed.
+`msiexec /i ... /passive /norestart` elevated (one UAC prompt); it is unchecked when Audiveris is already installed.
 Reinstalling stops a running SheetXML from that folder and replaces the files (upgrade). User data (keys,
 transcriptions, logs) lives in `%LOCALAPPDATA%\SheetXML`; the uninstaller asks before deleting it (default keep) and
 never removes Audiveris. It deletes only the files listed in `files.txt`.

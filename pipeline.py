@@ -689,7 +689,7 @@ def transcribe(data: bytes, *, provider: str, models: List[str], key: str, base_
                         g.cancel()
                     raise
                 errors[i] = e
-    if todo and len(errors) == len(todo) and not hints:
+    if todo and not any(results[i] for i in todo) and not hints:     # every reading of every system failed
         raise next(iter(errors.values()))
 
     score = abcxml.Score(title=head["title"], composer=head["composer"], key=head["key"], meter=head["meter"],
@@ -700,7 +700,8 @@ def transcribe(data: bytes, *, provider: str, models: List[str], key: str, base_
         n = job["n"]
         where = f"page {job['page'] + 1}, system {i + 1}" + (f" (m{job['first']}-m{job['first'] + n - 1})" if n else "")
         sc = vote(results[i], n) if results[i] else None
-        hint = job.get("hint") or (job["hint_sys"] if job.get("hint_sys") and sc and len(sc.bars) == len(job["hint_sys"]) else None)
+        hint = job.get("hint") or (job["hint_sys"] if job.get("hint_sys") and (sc is None or len(sc.bars) == len(job["hint_sys"]))
+                                   else None)          # no model reading at all: the OMR's bars stand in
         status = "confirmed" if job["skip"] else "repaired" if len(results[i]) > votes else "model"
         if job["skip"] or sc is None or (n and len(sc.bars) != n):
             k = n or (len(hint) if hint else 1)

@@ -195,7 +195,8 @@ namespace SheetXML
                         try
                         {
                             Process p = Process.GetProcessById(pid);
-                            if (p != null && !p.HasExited)
+                            // the pid file outlives a reboot or a killed server: its pid may now be any other program
+                            if (p != null && !p.HasExited && p.ProcessName.StartsWith("python", StringComparison.OrdinalIgnoreCase))
                             {
                                 p.Kill();
                                 p.WaitForExit(1000);
@@ -213,7 +214,7 @@ namespace SheetXML
             {
                 ProcessStartInfo psi = new ProcessStartInfo();
                 psi.FileName = "powershell.exe";
-                psi.Arguments = "-NoProfile -Command \"Get-NetTCPConnection -LocalPort " + port + " -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }\"";
+                psi.Arguments = "-NoProfile -Command \"Get-NetTCPConnection -LocalPort " + port + " -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique | ForEach-Object { Get-Process -Id $_ -ErrorAction SilentlyContinue } | Where-Object { $_.ProcessName -like 'python*' } | Stop-Process -Force -ErrorAction SilentlyContinue\"";
                 psi.UseShellExecute = false;
                 psi.CreateNoWindow = true;
                 using (Process proc = Process.Start(psi))

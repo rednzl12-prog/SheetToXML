@@ -18,7 +18,7 @@ import pypdfium2 as pdfium
 import pypdfium2.raw as R
 
 from abcxml import Bar, Ev, Pitch, Score, key_alters
-from omr import parse_page_range
+from omr import PDFIUM_LOCK, parse_page_range
 
 F = Fraction
 # Legacy byte codes shared by Sonata, Opus (Sibelius), Maestro (Finale), Petrucci, Engraver ...
@@ -486,7 +486,8 @@ def _title(text: List[Glyph], st: Staff, width: float) -> Tuple[str, str]:
         out = row[0].val
         for a, b in zip(row, row[1:]):
             out += (" " if b.l - a.r > 0.25 * (b.t - b.b) else "") + b.val
-        return out.strip()
+        # pdfium hands out UTF-16 units: join surrogate pairs, drop strays (lxml rejects them)
+        return out.encode("utf-16-le", "surrogatepass").decode("utf-16-le", "replace").replace("�", "").strip()
     big = max(rows, key=lambda r: max(t.t - t.b for t in r))
     comp = next((r for r in rows if r is not big and max(t.r for t in r) > 0.8 * width
                  and min(t.l for t in r) > 0.5 * width), None)
@@ -497,7 +498,15 @@ def transcribe(data: bytes, page_range: str = "") -> Optional[Score]:
     """Score from a born-digital PDF's music-font glyphs and vector paths, or None if it has none."""
     if data[:5] != b"%PDF-":
         return None
-    pdf = pdfium.PdfDocument(data)
+    with PDFIUM_LOCK:                                  # pdfium is not thread-safe; close before releasing it
+        pdf = pdfium.PdfDocument(data)
+        try:
+            return _read(pdf, page_range)
+        finally:
+            pdf.close()
+
+
+def _read(pdf, page_range: str) -> Optional[Score]:
     tokens: List[Tuple[int, float, str, object]] = []
     staff_no, multi, any_heads, title = 0, False, False, ("", "")
     pages = parse_page_range(page_range, len(pdf))

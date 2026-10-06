@@ -114,11 +114,16 @@ NOT_CHAT = re.compile(r"embed|tts|imagen|veo|aqa|whisper|dall-e|moderation|reran
 
 # ------------------------------------------------------------------ keys and providers
 
+ENV_LOCK = threading.Lock()     # .env is read and rewritten from server threads
+
+
 def _values(var: str) -> List[str]:
     """Non-empty values of `var`: environment first, then .env; whitespace removed."""
     vals = [os.environ.get(var, "")]
     try:
-        for line in CONFIG_FILE.read_text(encoding="utf-8").splitlines():
+        with ENV_LOCK:
+            text = CONFIG_FILE.read_text(encoding="utf-8-sig")      # Notepad may add a BOM
+        for line in text.splitlines():
             if line.strip().startswith(var + "="):
                 vals.append(line.split("=", 1)[1].strip().strip('"').strip("'"))
     except OSError:
@@ -156,18 +161,19 @@ def ready(provider: str) -> bool:
 
 def save_env(var: str, value: str):
     value = re.sub(r"[\s\"']+", "", value)
-    lines = CONFIG_FILE.read_text(encoding="utf-8").splitlines(True) if CONFIG_FILE.exists() else []
     entry = f'{var}="{value}"\n'
-    for i, line in enumerate(lines):
-        if line.strip().startswith(var + "="):
-            lines[i] = entry
-            break
-    else:
-        if lines and not lines[-1].endswith("\n"):
-            lines[-1] += "\n"
-        lines.append(entry)
-    CONFIG_FILE.write_text("".join(lines), encoding="utf-8")
-    os.environ[var] = value
+    with ENV_LOCK:
+        lines = CONFIG_FILE.read_text(encoding="utf-8-sig").splitlines(True) if CONFIG_FILE.exists() else []
+        for i, line in enumerate(lines):
+            if line.strip().startswith(var + "="):
+                lines[i] = entry
+                break
+        else:
+            if lines and not lines[-1].endswith("\n"):
+                lines[-1] += "\n"
+            lines.append(entry)
+        CONFIG_FILE.write_text("".join(lines), encoding="utf-8")
+        os.environ[var] = value
 
 
 def mask(key: str) -> str:
@@ -195,6 +201,9 @@ def model_chain(provider: str, model: str) -> List[str]:
 
 # ------------------------------------------------------------------ validation / result
 
+SCHEMA_LOCK = threading.Lock()  # the shared XMLSchema keeps one error_log; jobs and renders validate concurrently
+
+
 @functools.lru_cache(maxsize=1)
 def _schema():
     class LocalSchemaResolver(etree.Resolver):
@@ -213,10 +222,11 @@ def validate_musicxml_schema(xml_content: str) -> Tuple[bool, List[str]]:
     if not (SCHEMA_DIR / "musicxml.xsd").exists():
         return True, ["Schema directory not found, skipping deep XSD validation."]
     try:
-        schema = _schema()
         doc = etree.fromstring(xml_content.encode("utf-8"))
-        is_valid = schema.validate(doc)
-        return is_valid, [f"Line {e.line}, Col {e.column}: {e.message}" for e in schema.error_log]
+        with SCHEMA_LOCK:
+            schema = _schema()
+            is_valid = schema.validate(doc)
+            return is_valid, [f"Line {e.line}, Col {e.column}: {e.message}" for e in schema.error_log]
     except Exception as e:
         return False, [f"XML parsing/validation notice: {e}"]
 
@@ -285,6 +295,8 @@ class JobError(Exception):
 
 def friendly_error(e: BaseException, provider: str = "") -> str:
     if not isinstance(e, llm.LLMError):
+        if type(e).__name__ == "PdfiumError":
+            return "This PDF is password-protected or damaged - remove the password (or re-save it) and try again."
         return str(e) or type(e).__name__
     who = provider_name(provider)
     detail = " ".join(str(e).split())[:240]
@@ -333,7 +345,10 @@ def run_job(data: bytes, filename: str, opts: Dict[str, Any],
         return result(score, "import")
     if ext == ".abc":
         say("Reading the ABC file", 0.5)
-        return result(abcxml.parse_abc(data.decode("utf-8-sig", "replace")), "import")   # Notepad writes a BOM
+        score = abcxml.parse_abc(data.decode("utf-8-sig", "replace"))       # Notepad writes a BOM
+        if not score.bars:
+            raise JobError("No measures found in this ABC file.")
+        return result(score, "import")
 
     is_pdf = data[:5] == b"%PDF-"
     if engine in ("auto", "vector"):
@@ -665,6 +680,8 @@ class SheetXMLRequestHandler(SimpleHTTPRequestHandler):
                                        base_url=base_url)
         except llm.LLMError as e:
             return self._send_json(400, {"error": friendly_error(e, provider)})
+        except (AttributeError, TypeError, ValueError, KeyError):      # details came from the browser
+            return self._send_json(400, {"error": "Those piece details are not valid - transcribe the score again."})
         return self._send_json(200, {"text": text, "model": model})
 
     def _save_config(self, req: Dict[str, Any]):
@@ -724,7 +741,8 @@ class SheetXMLRequestHandler(SimpleHTTPRequestHandler):
 def server_answers(port: int) -> bool:
     """A SheetXML server already runs on this port."""
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/config", timeout=2) as r:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))     # never via a system proxy
+        with opener.open(f"http://127.0.0.1:{port}/api/config", timeout=2) as r:
             return r.status == 200 and "providers" in json.loads(r.read())
     except Exception:
         return False
@@ -733,6 +751,11 @@ def server_answers(port: int) -> bool:
 def start_server(port: int = 5050, open_browser: bool = True):
     """Launch the web GUI on 127.0.0.1 and record the pid for the Windows launcher."""
     try:
+        httpd = Server(("127.0.0.1", port), SheetXMLRequestHandler)
+    except OSError:
+        port += 1
+        httpd = Server(("127.0.0.1", port), SheetXMLRequestHandler)
+    try:                            # only once the port is ours: a failed second start must not clobber the pid
         PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
     except OSError:
         pass
@@ -744,12 +767,6 @@ def start_server(port: int = 5050, open_browser: bool = True):
         except OSError:
             pass
     atexit.register(_cleanup_pid)
-
-    try:
-        httpd = Server(("127.0.0.1", port), SheetXMLRequestHandler)
-    except OSError:
-        port += 1
-        httpd = Server(("127.0.0.1", port), SheetXMLRequestHandler)
 
     url = f"http://localhost:{port}"
     print("\n=======================================================")
@@ -880,9 +897,9 @@ def main():
     args = parser.parse_args()
     if args.input_file:
         run_cli(args)
-    elif FROZEN and server_answers(args.port):          # the launcher was clicked again: reuse the running app
-        if not args.no_browser:
-            webbrowser.open(f"http://localhost:{args.port}")
+    elif FROZEN and (running := next((p for p in (args.port, args.port + 1) if server_answers(p)), None)):
+        if not args.no_browser:                         # the launcher was clicked again: reuse the running app
+            webbrowser.open(f"http://localhost:{running}")      # (start_server falls back to port + 1)
     else:
         start_server(port=args.port, open_browser=not args.no_browser)
 

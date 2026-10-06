@@ -104,27 +104,30 @@ namespace SheetXMLSetup
 
             List<string> files = new List<string>();
             long total = 0;
-            using (Stream s = Me.GetManifestResourceStream("app.zip"))
-            using (ZipArchive zip = new ZipArchive(s, ZipArchiveMode.Read))
+            try
             {
-                long all = Math.Max(1, zip.Entries.Sum(e => e.Length)), done = 0;
-                string root = Path.GetFullPath(dir).TrimEnd('\\') + "\\";
-                foreach (ZipArchiveEntry e in zip.Entries)
+                using (Stream s = Me.GetManifestResourceStream("app.zip"))
+                using (ZipArchive zip = new ZipArchive(s, ZipArchiveMode.Read))
                 {
-                    string target = Path.GetFullPath(Path.Combine(root, e.FullName));
-                    if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase)) continue;
-                    if (e.FullName.EndsWith("/")) { Directory.CreateDirectory(target); continue; }
-                    Directory.CreateDirectory(Path.GetDirectoryName(target));
-                    using (Stream src = e.Open())
-                    using (FileStream dst = File.Create(target))
-                        src.CopyTo(dst);
-                    files.Add(e.FullName.Replace('/', '\\'));
-                    done += e.Length;
-                    total += e.Length;
-                    progress("Copying " + e.Name, (int)(80 * done / all));
+                    long all = Math.Max(1, zip.Entries.Sum(e => e.Length)), done = 0;
+                    string root = Path.GetFullPath(dir).TrimEnd('\\') + "\\";
+                    foreach (ZipArchiveEntry e in zip.Entries)
+                    {
+                        string target = Path.GetFullPath(Path.Combine(root, e.FullName));
+                        if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase)) continue;
+                        if (e.FullName.EndsWith("/")) { Directory.CreateDirectory(target); continue; }
+                        Directory.CreateDirectory(Path.GetDirectoryName(target));
+                        using (Stream src = e.Open())
+                        using (FileStream dst = File.Create(target))
+                            src.CopyTo(dst);
+                        files.Add(e.FullName.Replace('/', '\\'));
+                        done += e.Length;
+                        total += e.Length;
+                        progress("Copying " + e.Name, (int)(80 * done / all));
+                    }
                 }
             }
-            File.WriteAllLines(Path.Combine(dir, Manifest), files);
+            finally { File.WriteAllLines(Path.Combine(dir, Manifest), files); }  // a failed copy stays uninstallable
 
             progress("Creating shortcuts...", 85);
             string gui = Path.Combine(dir, "SheetXML.exe"), cli = Path.Combine(dir, "SheetXML-cli.exe");
@@ -170,7 +173,7 @@ namespace SheetXMLSetup
                 using (Stream s = Me.GetManifestResourceStream(res))
                 using (FileStream f = File.Create(msi))
                     s.CopyTo(f);
-                ProcessStartInfo psi = new ProcessStartInfo("msiexec.exe", "/i \"" + msi + "\" /passive");
+                ProcessStartInfo psi = new ProcessStartInfo("msiexec.exe", "/i \"" + msi + "\" /passive /norestart");  // basic UI reboots unasked otherwise
                 psi.UseShellExecute = true;
                 psi.Verb = "runas";  // Audiveris installs per machine: one UAC prompt
                 using (Process p = Process.Start(psi))
@@ -277,9 +280,13 @@ namespace SheetXMLSetup
             }
             StopRunning(dir);
             string root = dir.TrimEnd('\\') + "\\";
-            foreach (string lnk in new[] { "SheetXML.lnk", "SheetXML Command Line.lnk", "Uninstall SheetXML.lnk" })
-                try { File.Delete(Path.Combine(MenuDir, lnk)); } catch { }
-            try { Directory.Delete(MenuDir); } catch { }
+            string menuTarget = ShortcutTarget(Path.Combine(MenuDir, "SheetXML.lnk"));
+            if (menuTarget.Length == 0 || menuTarget.StartsWith(root, StringComparison.OrdinalIgnoreCase))  // not another install's
+            {
+                foreach (string lnk in new[] { "SheetXML.lnk", "SheetXML Command Line.lnk", "Uninstall SheetXML.lnk" })
+                    try { File.Delete(Path.Combine(MenuDir, lnk)); } catch { }
+                try { Directory.Delete(MenuDir); } catch { }
+            }
             if (File.Exists(DesktopLnk) && ShortcutTarget(DesktopLnk).StartsWith(root, StringComparison.OrdinalIgnoreCase))
                 try { File.Delete(DesktopLnk); } catch { }
             DeleteListed(dir);
@@ -294,16 +301,18 @@ namespace SheetXMLSetup
             }
             if (deleteData)
                 try { Directory.Delete(DataDir, true); } catch { }
-            // ponytail: a running exe cannot delete itself; a hidden cmd removes uninstall.exe and the empty folder 2 s later.
-            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe",
-                "/c ping -n 3 127.0.0.1 >nul & del /f /q \"" + Me.Location + "\" & rd \"" + dir + "\"");
-            psi.CreateNoWindow = true;
-            psi.UseShellExecute = false;
-            Process.Start(psi);
             if (!silent)
                 MessageBox.Show("SheetXML was removed." + (deleteData ? "" : "\nYour data was kept in " + DataDir + ".") +
                                 "\n\nAudiveris (if installed) was left in place; remove it from Windows Settings > Apps.",
                                 "Uninstall " + App, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // ponytail: a running exe cannot delete itself; a hidden cmd removes uninstall.exe and the empty folder 2 s
+            // after this process exits. Started last and outside dir (the Start menu shortcut's working folder blocks rd).
+            ProcessStartInfo psi = new ProcessStartInfo("cmd.exe",
+                "/c ping -n 3 127.0.0.1 >nul & del /f /q \"" + Me.Location + "\" & rd \"" + dir + "\"");
+            psi.CreateNoWindow = true;
+            psi.UseShellExecute = false;
+            psi.WorkingDirectory = Path.GetTempPath();
+            Process.Start(psi);
             return 0;
         }
     }

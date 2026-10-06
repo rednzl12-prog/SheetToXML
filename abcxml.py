@@ -13,6 +13,7 @@ import zipfile
 from collections import Counter
 from dataclasses import dataclass, field
 from fractions import Fraction
+from functools import lru_cache
 from math import ceil, gcd
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -128,9 +129,10 @@ def parse_meter(text: str) -> Optional[Tuple[int, int, str]]:
     if t.upper() == "C|":
         return 2, 2, "cut"
     m = re.match(r"\(?\s*(\d+(?:\s*\+\s*\d+)*)\s*\)?\s*/\s*(\d+)", t)      # 3/4, 2+3/8, (2+3)/8
-    if not m or not int(m.group(2)):
-        return None                                                       # M:none -> keep current
-    return sum(int(x) for x in m.group(1).split("+")), int(m.group(2)), ""
+    beats = sum(int(x) for x in m.group(1).split("+")) if m else 0
+    if not m or not int(m.group(2)) or not beats:
+        return None                                                       # M:none / 0 beats -> keep current
+    return beats, int(m.group(2)), ""
 
 
 def parse_tempo(text: str) -> Optional[float]:
@@ -677,10 +679,18 @@ def _beam_groups(pieces: List[_Piece], group_len: Fraction):
                 i = j + 1
 
 
+_XML_BAD = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]")
+
+
+def _xs(v) -> str:
+    """str(v) without the characters XML 1.0 forbids (lxml raises on them; titles and chord symbols are untrusted)."""
+    return _XML_BAD.sub("", str(v))
+
+
 def _sub(parent, tag: str, value=None, **attrs):
-    e = etree.SubElement(parent, tag, **{k: str(v) for k, v in attrs.items() if v is not None})
+    e = etree.SubElement(parent, tag, **{k: _xs(v) for k, v in attrs.items() if v is not None})
     if value is not None:
-        e.text = str(value)
+        e.text = _xs(value)
     return e
 
 
@@ -713,6 +723,13 @@ def _harmony(parent, symbol: str):
             _sub(bass, "bass-alter", 1 if m.group(5) == "#" else -1)
 
 
+@lru_cache(maxsize=8)
+def _fingering(steps: tuple, arr: mando.Arrangement):
+    """mando.optimize, memoised: to_musicxml and to_ascii_tab for the same score and arrangement share one
+    search. The result is shared, so callers only read it."""
+    return mando.optimize(steps, arr)
+
+
 def _positions(events: List[Ev], arr: mando.Arrangement) -> Dict[int, List[Optional[Dict[str, Any]]]]:
     """Course/fret for every pitched event, aligned with its pitches (None = not playable in this
     arrangement). The whole piece is fingered as one phrase; tied continuations share their
@@ -734,7 +751,7 @@ def _positions(events: List[Ev], arr: mando.Arrangement) -> Dict[int, List[Optio
             owners.append(ev)
             gap = False
         prev = ev
-    pos = {id(ev): r for ev, r in zip(owners, mando.optimize([tuple(s) for s in steps], arr))}
+    pos = {id(ev): r for ev, r in zip(owners, _fingering(tuple((tuple(m), d, g) for m, d, g in steps), arr))}
     for ev in events:
         if id(ev) in cont:
             pos[id(ev)] = pos[id(cont[id(ev)])]
@@ -764,6 +781,8 @@ def _arrangement(arrangement: Any = None, skill_level: str = "beginner") -> mand
 def _prepare(score: Score, arr: mando.Arrangement, tab: bool, transpose: bool):
     """Copy of the score moved into the instrument's range, its flat events, the shift, and the fingering."""
     sc = copy.deepcopy(score)
+    for b in sc.bars:                     # a zero-length event (bad import, 'C0') has no MusicXML duration
+        b.events = [e for e in b.events if e.dur > 0]
     events = [e for b in sc.bars for e in b.events]
     shift = _octave_shift(events, arr) if (tab and transpose) else 0
     if shift:
@@ -776,9 +795,15 @@ def _prepare(score: Score, arr: mando.Arrangement, tab: bool, transpose: bool):
 def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner", transpose: bool = True,
                 arrangement: Optional[Dict[str, Any]] = None) -> Tuple[str, Dict[str, Any]]:
     """Build a MusicXML 4.0 string; with tab=True the part has a notation staff and a TAB staff for the
-    arrangement (mandolin_optimizer.arrangement() keys; they override skill_level). ValueError for a bad arrangement."""
+    arrangement (mandolin_optimizer.arrangement() keys; they override skill_level). ValueError for a bad arrangement.
+
+    The stats count plucked notes (a tied continuation is not counted again). stats["stringUsage"] is keyed by
+    MusicXML string number, 1..n, where 1 is the HIGHEST course (E on a GDAE mandolin) and n the lowest; the
+    keys become the strings "1".."n" in JSON. stats["tuning"] lists the courses lowest first, so string s
+    is tuning[n - s]."""
     arr = _arrangement(arrangement, skill_level)
     sc, events, shift, positions = _prepare(score, arr, tab, transpose)
+    sc.bars = sc.bars or [Bar()]           # the schema needs at least one <measure>
     inst = arr.inst
     n_courses = len(arr.tuning)
 
@@ -789,6 +814,9 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner", t
             d = (pc.sound * 4).denominator
             den = den * d // gcd(den, d)
     divisions = den if den <= 5040 else 960
+
+    def dur(pc: _Piece) -> int:            # MusicXML durations are positive; 960 rounds a very odd length
+        return max(1, int(pc.sound * 4 * divisions))
 
     flat ={id(e): i for i, e in enumerate(events)}
     problems = {i for i, _, _ in sc.problems()}
@@ -837,7 +865,7 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner", t
             if pitch.alter:
                 _sub(p, "alter", pitch.alter)
             _sub(p, "octave", pitch.octave)
-        _sub(n, "duration", int(pc.sound * 4 * divisions))
+        _sub(n, "duration", dur(pc))
         t_start = t_stop = False
         if pitch is not None:
             t_start, t_stop = tie_flags(ev, pitch, pc.first, pc.last)
@@ -875,24 +903,29 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner", t
                 _sub(tech, "string", pos["string"])
                 _sub(tech, "fret", pos["fret"])
 
+    def volta(text: str) -> str:            # the schema allows only '1', '1, 2' ...: no 0, no '1.'
+        return ", ".join(re.findall(r"[1-9]\d*", text or ""))
+
     def barline(m, location: str, bar: Bar):
+        start = volta(bar.ending)
+        stop = volta(bar.ending_stop[0]) if bar.ending_stop else ""
         if location == "left":
-            if not (bar.left or bar.ending):
+            if not (bar.left or start):
                 return
             b = _sub(m, "barline", location="left")
             if bar.left:
                 _sub(b, "bar-style", "heavy-light")
-            for num in ([bar.ending] if bar.ending else []):
-                _sub(b, "ending", number=num, type="start")
+            if start:
+                _sub(b, "ending", number=start, type="start")
             if bar.left:
                 _sub(b, "repeat", direction="forward")
             return
-        if not (bar.right or bar.ending_stop):
+        if not (bar.right or stop):
             return
         b = _sub(m, "barline", location="right")
         _sub(b, "bar-style", {"repeat": "light-heavy", "double": "light-light", "final": "light-heavy"}.get(bar.right, "regular"))
-        if bar.ending_stop:
-            _sub(b, "ending", number=bar.ending_stop[0], type=bar.ending_stop[1])
+        if stop:
+            _sub(b, "ending", number=stop, type=bar.ending_stop[1])
         if bar.right == "repeat":
             _sub(b, "repeat", direction="backward")
 
@@ -959,7 +992,7 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner", t
                 note(m, pc, p, k > 0, 1, None)
         if tab and pcs:
             bk = _sub(m, "backup")
-            _sub(bk, "duration", sum(int(pc.sound * 4 * divisions) for pc in pcs))
+            _sub(bk, "duration", sum(map(dur, pcs)))
             for pc in pcs:
                 placed = [(p, q) for p, q in zip(pc.ev.pitches, positions.get(id(pc.ev), [])) if q]
                 for k, (p, q) in enumerate(placed or [(None, None)]):     # unplayable notes rest on the TAB staff
@@ -970,6 +1003,8 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner", t
     for ev in events:
         ps = positions.get(id(ev))
         if ps is None:
+            continue
+        if ps is seen:                                  # a tied continuation is not a new note (as in to_ascii_tab)
             continue
         for p, pos in zip(ev.pitches, ps):
             stats["outOfRange"] += not arr.low <= p.midi <= arr.high
@@ -983,7 +1018,7 @@ def to_musicxml(score: Score, tab: bool = True, skill_level: str = "beginner", t
             stats["upperPositionCount"] += pos["fret"] > 7
             frets.append(pos["fret"])
         h = next((q["hand"] for q in ps if q and q["fret"]), None)
-        if ps is not seen and h is not None:          # a tied continuation is not a new hand placement
+        if h is not None:
             hands.append(h)
         seen = ps
     stats["highestFret"], stats["lowestFret"] = max(frets, default=0), min(frets, default=0)
@@ -1021,7 +1056,7 @@ def to_ascii_tab(score: Score, arrangement: Optional[Dict[str, Any]] = None, wid
         seen = ps
     blocks = []                                   # per bar: [rhythm row, string 1 row, ..., string n row]
     for bar in sc.bars:
-        head, mark = (":" if bar.left else "") + "-", f"{bar.ending}." if bar.ending else ""
+        head, mark = (":" if bar.left else "") + "-", f"{bar.ending}. " if bar.ending else ""
         pw = max(len(head), len(mark))
         rows = [mark.ljust(pw)] + [head.ljust(pw, "-")] * n
         for ev in bar.events:
@@ -1499,4 +1534,14 @@ if __name__ == "__main__":
     assert " 1  q  e. s|:" not in t and t.splitlines()[-5:-1] == [
         " E|:-------2---|-2---(2)---:|", " A|:-0--------|-0---(0)---:|",
         " D|:-0---0-----|-0---(0)---:|", " G|:----------|-----------:|"][:0] + t.splitlines()[-5:-1], t
+    # -- odd input still gives schema-valid MusicXML; ties count once; the text tab reuses the MusicXML's search
+    for t in ("K:C\nC0 D E F|", "K:C\n|:C4 [0 D4:|", 'T:a\x01b\nK:C\n"G\x01"C4|', "K:C\nC/64/64 D|", "", "K:C\n"):
+        for tab in (True, False):
+            assert app.validate_musicxml_schema(to_musicxml(parse_abc(t), tab=tab)[0])[0], (t, tab)
+    st = to_musicxml(parse_abc("K:C\nc4-|c4 z4|"))[1]
+    assert st["totalNotes"] == 1 and st["stringUsage"] == {1: 0, 2: 1, 3: 0, 4: 0}, st
+    hits = _fingering.cache_info().hits
+    to_musicxml(tune, arrangement={"style": "closed"})
+    to_ascii_tab(tune, {"style": "closed"})
+    assert _fingering.cache_info().hits > hits
     print("abcxml self-check ok")

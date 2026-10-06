@@ -217,9 +217,9 @@ def discover(provider: str, key: str, base_url: str = "", timeout: float = 25) -
     """Cheap, token-free authenticated call. Returns (working base url, model ids)."""
     if provider == "gemini":
         try:
-            client = genai.Client(api_key=key, http_options=types.HttpOptions(
-                timeout=int(timeout * 1000), retry_options=types.HttpRetryOptions(attempts=1)))
-            return "", [m.name.replace("models/", "") for m in client.models.list()]
+            with genai.Client(api_key=key, http_options=types.HttpOptions(
+                    timeout=int(timeout * 1000), retry_options=types.HttpRetryOptions(attempts=1))) as client:
+                return "", [m.name.replace("models/", "") for m in client.models.list()]
         except Exception as e:
             raise _map_gemini(e)
     tried, headers = [], _headers(provider, key)
@@ -232,7 +232,7 @@ def discover(provider: str, key: str, base_url: str = "", timeout: float = 25) -
                     continue
             r = httpx.get(base + "/models", headers=headers, timeout=timeout,
                           params={"limit": 1000} if provider == "anthropic" else None)
-        except httpx.HTTPError as e:
+        except (httpx.HTTPError, httpx.InvalidURL) as e:
             tried.append(f"{base}: {type(e).__name__}")
             continue
         if r.status_code == 200:
@@ -282,18 +282,18 @@ def _gemini(model, key, system, parts, max_tokens, thinking, timeout, cancel, on
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True))
     out, finish = [], None
     try:
-        client = genai.Client(api_key=key, http_options=types.HttpOptions(
-            timeout=int(timeout * 1000), retry_options=types.HttpRetryOptions(attempts=1)))
-        for chunk in client.models.generate_content_stream(model=model, contents=contents, config=config):
-            if cancel and cancel():
-                raise LLMError("Cancelled", "cancelled")
-            if chunk.candidates and chunk.candidates[0].finish_reason:
-                finish = chunk.candidates[0].finish_reason.name
-            piece = chunk.text
-            if piece:
-                out.append(piece)
-                if on_chunk:
-                    on_chunk(piece)
+        with genai.Client(api_key=key, http_options=types.HttpOptions(       # closes its pooled connections
+                timeout=int(timeout * 1000), retry_options=types.HttpRetryOptions(attempts=1))) as client:
+            for chunk in client.models.generate_content_stream(model=model, contents=contents, config=config):
+                if cancel and cancel():
+                    raise LLMError("Cancelled", "cancelled")
+                if chunk.candidates and chunk.candidates[0].finish_reason:
+                    finish = chunk.candidates[0].finish_reason.name
+                piece = chunk.text
+                if piece:
+                    out.append(piece)
+                    if on_chunk:
+                        on_chunk(piece)
     except Exception as e:
         raise _map_gemini(e)
     text = "".join(out)
@@ -310,6 +310,17 @@ def _b64(p: bytes) -> str:
     return base64.b64encode(p).decode()
 
 
+def _sse_lines(r: httpx.Response):
+    """Lines split at CR, LF or CRLF only. httpx's iter_lines uses str.splitlines, which also breaks at
+    U+2028/U+0085 inside raw-UTF-8 JSON and so silently drops that chunk of the answer."""
+    buf = ""
+    for text in r.iter_text():
+        *done, buf = re.split(r"\r\n|\r|\n", buf + text)
+        yield from done
+    if buf:
+        yield buf
+
+
 def _sse(url: str, body: dict, headers: Dict[str, str], timeout: float, cancel, on_event: Callable[[dict], None]):
     """POST a streaming request and hand each `data:` JSON object to on_event (stops at [DONE] or when it returns True)."""
     try:
@@ -318,7 +329,7 @@ def _sse(url: str, body: dict, headers: Dict[str, str], timeout: float, cancel, 
             if r.status_code != 200:
                 r.read()
                 raise _error_from_http(r.status_code, r.text, r.headers.get("retry-after", ""))
-            for line in r.iter_lines():
+            for line in _sse_lines(r):
                 if cancel and cancel():
                     raise LLMError("Cancelled", "cancelled")
                 if not line.startswith("data:"):
@@ -332,7 +343,7 @@ def _sse(url: str, body: dict, headers: Dict[str, str], timeout: float, cancel, 
                     continue
                 if isinstance(event, dict) and on_event(event):
                     break
-    except httpx.HTTPError as e:
+    except (httpx.HTTPError, httpx.InvalidURL) as e:
         raise LLMError(f"Network error: {type(e).__name__}: {e}", "network")
 
 
@@ -534,7 +545,7 @@ def generate_with_fallback(provider: str, models: List[str], key: str, system: s
                     break
                 if e.kind == "model":
                     break
-                wait = e.retry_after or min(20, 3 * 2 ** attempt) + random.random()
+                wait = min(e.retry_after, 60) or min(20, 3 * 2 ** attempt) + random.random()   # a 503's Retry-After can be hours
                 if notify:
                     notify(f"{model}: {e.kind} - retrying in {wait:.0f}s")
                 sleep_unless_cancelled(wait, kw.get("cancel"))
@@ -573,7 +584,7 @@ def _mock_server():
                 "choices": [{"index": 0, "delta": {"content": t}, "finish_reason": None}]} for t in text]
         ev += [{"id": "c1", "object": "chat.completion.chunk", "model": "m",
                 "choices": [{"index": 0, "delta": {}, "finish_reason": finish}]}]
-        return "".join(f"data: {json.dumps(e)}\n\n" for e in ev) + "data: [DONE]\n\n"
+        return "".join(f"data: {json.dumps(e, ensure_ascii=False)}\n\n" for e in ev) + "data: [DONE]\n\n"
 
     def ant(text, stop="end_turn", thinking=False, error=None):
         ev = [("message_start", {"type": "message_start", "message": {
@@ -673,6 +684,8 @@ def _mock_server():
                                     param="max_tokens", code="unsupported_parameter")
             if m == "long":
                 return self.send(200, oai(["abc"], "length"), sse)
+            if m == "unicode":      # raw UTF-8 line separators inside the JSON strings
+                return self.send(200, oai(["A\u2028B", "C\u0085D", "\u00e9"]), sse)
             if m == "upstream":     # OpenRouter-style mid-stream error
                 return self.send(200, "data: " + json.dumps({"id": "x", "object": "chat.completion.chunk",
                                  "error": {"code": 502, "message": "Provider returned error"},
@@ -727,6 +740,7 @@ def _selfcheck():
     assert log[-1]["body"]["reasoning_effort"] == "low" and "max_completion_tokens" in log[-1]["body"]
     assert generate("openrouter", "ok", "sk-or-good", "s", ["x"], thinking="high", **kw) == "Hello"
     assert log[-1]["body"]["reasoning"] == {"effort": "high"} and log[-1]["headers"]["X-Title"] == "SheetXML"
+    assert generate("custom", "unicode", "good", "s", ["x"], **kw) == "A\u2028BC\u0085D\u00e9"
     assert kind_of(lambda: generate("custom", "unauth", "bad", "s", ["x"], **kw)) == "auth"
     assert kind_of(lambda: generate("custom", "busy", "good", "s", ["x"], **kw)) == "overload"
     assert kind_of(lambda: generate("custom", "long", "good", "s", ["x"], **kw)) == "truncated"

@@ -341,12 +341,15 @@ def _form(bars: List[Bar], num: Callable[[int], int]) -> Dict[str, Any]:
     distinct = len(reps)
     form["shape"] = "through-composed" if distinct == len(units) else         f"{distinct} distinct section(s), some repeated or varied"
     # longest passage of 2+ bars heard again later (exact, non-overlapping); empty bars never match
+    ids: Dict[tuple, int] = {}
+    sid = [ids.setdefault(s, len(ids)) if any(e.pitches for e in b.events) else -1 - k   # O(n^2) int compares,
+           for k, (s, b) in enumerate(zip(sigs, bars))]                                  # not Fraction tuples
     best_len, best_at = 0, (0, 0)
     run = [0] * (n + 1)
     for i in range(n - 1, -1, -1):
         new = [0] * (n + 1)
         for j in range(n - 1, i, -1):
-            if sigs[i] == sigs[j] and any(e.pitches for e in bars[i].events):
+            if sid[i] == sid[j]:
                 new[j] = min(run[j + 1] + 1, j - i)
                 if new[j] > best_len:
                     best_len, best_at = new[j], (i, j)
@@ -424,6 +427,8 @@ def analyze(score: Score, stats: Optional[dict] = None) -> Dict[str, Any]:
         bar_starts.append(pos)
         beats_total += b.total / beat
         for ev in b.events:
+            if ev.dur <= 0:                       # zero-length note (grace-like, from MusicXML/AI): no rhythm
+                continue
             if not ev.pitches:
                 rests += 1
                 prev_tie = False
@@ -713,6 +718,7 @@ if __name__ == "__main__":
                 ["stringUsage"].items()) == [("G3", 1), ("D4", 0), ("G4", 0), ("D5", 5)]
     assert key_label(-2, "major") == "B flat major" and key_label(3, "minor") == "F sharp minor"
     assert analyze(abcxml.Score())["measures"] == 0
+    assert analyze(abcxml.parse_abc("M:4/4\nL:1/4\nK:G\nG0 A2B2|\n"))["shortestNote"] == "half"   # zero-length note
 
     # the Canon (exact vector-PDF reading) - speed and one full JSON for a reviewer
     import vectorpdf

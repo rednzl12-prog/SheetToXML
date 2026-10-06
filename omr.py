@@ -9,6 +9,7 @@ by abcxml.
 import io
 import re
 import statistics
+import threading
 import warnings
 from dataclasses import dataclass
 from fractions import Fraction
@@ -22,6 +23,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)   # Pillow's getd
 TARGET_SPACING = 22          # px between staff lines after normalisation
 MAX_CROP_WIDTH = 3000
 PDF_MAX_SIDE = 3400          # px for the longer side of a rendered page
+PDFIUM_LOCK = threading.Lock()   # pdfium is not thread-safe (even across documents); jobs run on threads
 
 
 # ------------------------------------------------------------------ loading
@@ -40,16 +42,21 @@ def parse_page_range(spec: str, total: int) -> List[int]:
 def load_pages(data: bytes, page_range: str = "") -> List[Image.Image]:
     """Greyscale page images from a PDF or an image file."""
     if data[:5] == b"%PDF-":
-        pdf = pdfium.PdfDocument(data)
-        pages = []
-        for i in parse_page_range(page_range, len(pdf)):
-            page = pdf[i]
-            w, h = page.get_size()
-            pages.append(page.render(scale=min(300 / 72, PDF_MAX_SIDE / max(w, h))).to_pil().convert("L"))
-        return pages
+        with PDFIUM_LOCK:
+            pdf = pdfium.PdfDocument(data)
+            try:
+                pages = []
+                for i in parse_page_range(page_range, len(pdf)):
+                    page = pdf[i]
+                    w, h = page.get_size()
+                    pages.append(page.render(scale=min(300 / 72, PDF_MAX_SIDE / max(w, h, 1))).to_pil().convert("L"))
+                return pages
+            finally:
+                pdf.close()
     img = Image.open(io.BytesIO(data))
     frames = []
-    for i in range(min(getattr(img, "n_frames", 1), 50)):
+    # only TIFF frames are pages: a phone JPEG (MPO) carries a preview frame, a GIF animation frames
+    for i in range(min(getattr(img, "n_frames", 1), 50) if img.format == "TIFF" else 1):
         img.seek(i)
         f = ImageOps.exif_transpose(img.copy())
         if f.mode in ("RGBA", "LA", "P"):
@@ -280,6 +287,8 @@ def measures(img: Image.Image, system: System) -> Tuple[List[Tuple[int, int]], b
 
     on_line = {round(c) + d for s in staves for c in s for d in (-2, -1, 0, 1, 2)}
     between = [y for y in range(y0, y1) if y not in on_line]
+    if not between:                                     # spacing <= 5 px: too small to tell barlines apart
+        return [], False
     dots = {y for s in staves for y in range(round(s[1]), round(s[3]))} - on_line   # repeat dots: the middle spaces
     far, wide = max(5, round(0.45 * sp)), round(sp)
 
@@ -524,7 +533,8 @@ def key_signature(img: Image.Image, system: System) -> Optional[int]:
     ink = {(x, y) for y in range(y0, y1) for x in range(x0, x1) if px[x, y]}
     rows = _row_ink(bw)
     for c in staff:                                    # erase the staff lines where no symbol crosses them
-        band = [y for y in range(round(c - 0.3 * sp), round(c + 0.3 * sp) + 1) if rows[y] >= rows[round(c)] / 2]
+        band = [y for y in range(round(c - 0.3 * sp), round(c + 0.3 * sp) + 1)
+                if 0 <= y < H and rows[y] >= rows[round(c)] / 2]
         if band:
             band = list(range(band[0] - 1, band[-1] + 2))       # plus the ragged edge rows of a scanned line
             for x in range(x0, x1):

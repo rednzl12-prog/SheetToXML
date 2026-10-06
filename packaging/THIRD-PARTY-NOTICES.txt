@@ -14,6 +14,13 @@ Audiveris 5.11 (optional, installed separately by this installer's Audiveris opt
 
 Python 3.14 runtime and standard library
   License: Python Software Foundation License Version 2 (PSF-2.0). https://www.python.org/
+  Native libraries that ship with the Python runtime in the program folder:
+  - OpenSSL 3 (libcrypto-3.dll, libssl-3.dll): Apache-2.0. https://www.openssl.org/
+  - libffi (libffi-8.dll): MIT. https://sourceware.org/libffi/
+  - Microsoft Visual C++ runtime (VCRUNTIME140.dll, VCRUNTIME140_1.dll): redistributable under the
+    Microsoft Visual Studio redistribution terms.
+  - Compression modules built into the runtime: zlib (zlib license), bzip2 (bzip2 license),
+    liblzma/xz (0BSD / public domain), Zstandard (BSD-3-Clause), expat (MIT).
 
 PyInstaller bootloader (SheetXML.exe, SheetXML-cli.exe start-up code)
   License: GPL-2.0-or-later with the PyInstaller bootloader exception, which permits distributing
